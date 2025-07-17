@@ -98,23 +98,9 @@ class VerificateurTimeout:
         if not patterns_base:
             return nouveaux_patterns.copy()
         
-        patterns_fusionnes = patterns_base.copy()
-        
-        for cle, valeur in nouveaux_patterns.items():
-            if cle in patterns_fusionnes:
-                if isinstance(patterns_fusionnes[cle], dict) and isinstance(valeur, dict):
-                    # Fusion récursive pour les dictionnaires
-                    patterns_fusionnes[cle] = self._fusionner_patterns(patterns_fusionnes[cle], valeur)
-                elif isinstance(patterns_fusionnes[cle], list) and isinstance(valeur, list):
-                    # Concaténation pour les listes
-                    patterns_fusionnes[cle] = patterns_fusionnes[cle] + valeur
-                else:
-                    # Remplacement direct
-                    patterns_fusionnes[cle] = valeur
-            else:
-                patterns_fusionnes[cle] = valeur
-        
-        return patterns_fusionnes
+        # Fusion simple avec l'opérateur | (Python 3.9+)
+        # ou patterns_base.copy().update(nouveaux_patterns) pour Python < 3.9
+        return patterns_base | nouveaux_patterns
     
     def verifier_cause_timeout(self, page: Page) -> Optional[str]:
         """
