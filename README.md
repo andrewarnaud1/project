@@ -1,24 +1,39 @@
-        html_lower = html_content.lower()
-        
-        for pattern in patterns:
-            matches = re.finditer(pattern, html_lower, re.IGNORECASE)
-            for match in matches:
-                if match.groups():
-                    # Si le pattern capture un code d'erreur
-                    code = match.group(1)
-                    errors.append(f"Code d'erreur HTTP {code}")
-                else:
-                    # Si le pattern capture un message complet
-                    matched_text = match.group(0)
-                    if 'problem' in matched_text or 'error' in matched_text:
-                        errors.append("Erreur HTTP détectée dans la page")
-                    elif 'server' in matched_text:
-                        errors.append("Erreur serveur détectée")
-                    elif 'unavailable' in matched_text or 'indisponible' in matched_text:
-                        errors.append("Service indisponible")
-                
-                # Limiter à 3 erreurs maximum
-                if len(errors) >= 3:
-                    break
-        
-        return errors
+        # Patterns pour détecter les erreurs HTTP dans le HTML
+        patterns = [
+            # Error code: 500, 404, etc.
+            r'error\s*code\s*:\s*([45]\d{2})',
+            r'code\s*erreur\s*:\s*([45]\d{2})',
+            
+            # data-l10n-args avec responsestatus
+            r'data-l10n-args="[^"]*responsestatus[^"]*:([45]\d{2})',
+            r'responsestatus[^"]*:([45]\d{2})',
+            
+            # Messages d'erreur classiques
+            r'internal\s*server\s*error',
+            r'not\s*found.*404',
+            r'service\s*unavailable',
+            r'bad\s*gateway',
+            r'gateway\s*timeout',
+            
+            # Messages français
+            r'erreur\s*du\s*serveur',
+            r'page\s*introuvable',
+            r'service\s*indisponible',
+            r'erreur\s*interne',
+            
+            # Titres d'erreur
+            r'<title[^>]*>.*problem.*loading.*page.*</title>',
+            r'<title[^>]*>.*erreur.*</title>',
+            r'<title[^>]*>.*error.*</title>',
+            
+            # Classes CSS d'erreur
+            r'class="[^"]*error[^"]*"',
+            r'class="[^"]*neterror[^"]*"',
+            
+            # IDs d'erreur
+            r'id="[^"]*error[^"]*"',
+            
+            # Texte "looks like there's a problem"
+            r'looks\s*like.*problem.*site',
+            r'problème.*site',
+        ]
