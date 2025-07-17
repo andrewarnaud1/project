@@ -1,0 +1,261 @@
+# ==============================================================================
+# CONFIGURATION DES PATTERNS D'ERREUR - TOUS TYPES
+# Fichier commun pour tous les scénarios de test
+# ==============================================================================
+
+detection_erreurs:
+  # ----------------------------------------------------------------------------
+  # PATTERNS POUR CODES D'ERREUR HTTP SPÉCIFIQUES
+  # Ces patterns recherchent les codes d'erreur précis (404, 500, etc.)
+  # ----------------------------------------------------------------------------
+  codes_http:
+    - 'error\s*code\s*:\s*([45]\d{2})'              # Error code: 500
+    - 'code\s*erreur\s*:\s*([45]\d{2})'             # Code erreur: 500
+    - 'responsestatus[^"]*:([45]\d{2})'             # Firefox responsestatus:500
+    - 'status\s*:\s*([45]\d{2})'                    # Status: 500
+    - 'http/1\.[01]\s+([45]\d{2})'                  # HTTP/1.1 500
+    - '<h1[^>]*>([45]\d{2})'                        # <h1>500</h1>
+    - '"status"\s*:\s*([45]\d{2})'                  # "status": 500
+    - '"code"\s*:\s*([45]\d{2})'                    # "code": 500
+
+  # ----------------------------------------------------------------------------
+  # MESSAGES D'ERREUR GÉNÉRIQUES (tous types)
+  # Organisés par type d'erreur
+  # ----------------------------------------------------------------------------
+  messages_erreur:
+    # ERREURS SERVEUR HTTP (5xx)
+    "5xx":
+      - 'internal\s*server\s*error'
+      - 'server\s*error'
+      - 'service\s*unavailable'
+      - 'bad\s*gateway'
+      - 'gateway\s*timeout'
+      - 'erreur\s*interne\s*du\s*serveur'
+      - 'erreur\s*serveur'
+      - 'service\s*indisponible'
+      - 'maintenance\s*en\s*cours'
+      - 'application\s*temporairement\s*indisponible'
+    
+    # ERREURS CLIENT HTTP (4xx)
+    "4xx":
+      - 'not\s*found'
+      - 'page\s*not\s*found'
+      - 'forbidden'
+      - 'access\s*denied'
+      - 'unauthorized'
+      - 'page\s*introuvable'
+      - 'accès\s*interdit'
+      - 'non\s*autorisé'
+      - 'session\s*expirée'
+
+    # ERREURS DE RÉSEAU
+    "reseau":
+      - 'connection\s*refused'
+      - 'connection\s*timeout'
+      - 'network\s*error'
+      - 'connexion\s*refusée'
+      - 'timeout\s*de\s*connexion'
+      - 'erreur\s*réseau'
+      - 'host\s*unreachable'
+      - 'hôte\s*injoignable'
+      - 'dns\s*resolution\s*failed'
+      - 'résolution\s*dns\s*échouée'
+      - 'no\s*internet\s*connection'
+      - 'pas\s*de\s*connexion\s*internet'
+
+    # ERREURS DE BASE DE DONNÉES
+    "database":
+      - 'database\s*connection\s*error'
+      - 'database\s*timeout'
+      - 'connection\s*to\s*database\s*failed'
+      - 'erreur\s*base\s*de\s*données'
+      - 'connexion\s*base\s*données\s*impossible'
+      - 'timeout\s*base\s*de\s*données'
+      - 'database\s*unavailable'
+      - 'base\s*de\s*données\s*indisponible'
+      - 'sql\s*error'
+      - 'erreur\s*sql'
+
+    # ERREURS DE SÉCURITÉ
+    "securite":
+      - 'ssl\s*error'
+      - 'certificate\s*error'
+      - 'security\s*error'
+      - 'erreur\s*ssl'
+      - 'erreur\s*certificat'
+      - 'erreur\s*sécurité'
+      - 'certificate\s*expired'
+      - 'certificat\s*expiré'
+      - 'invalid\s*certificate'
+      - 'certificat\s*invalide'
+      - 'authentication\s*failed'
+      - 'échec\s*authentification'
+
+    # ERREURS DE SESSION
+    "session":
+      - 'session\s*expired'
+      - 'session\s*timeout'
+      - 'session\s*invalid'
+      - 'session\s*expirée'
+      - 'session\s*invalide'
+      - 'token\s*expired'
+      - 'token\s*expiré'
+      - 'token\s*invalid'
+      - 'token\s*invalide'
+      - 'please\s*login\s*again'
+      - 'veuillez\s*vous\s*reconnecter'
+
+    # ERREURS MÉTIER/APPLICATION
+    "metier":
+      - 'business\s*rule\s*violation'
+      - 'validation\s*error'
+      - 'règle\s*métier\s*violée'
+      - 'erreur\s*validation'
+      - 'données\s*invalides'
+      - 'invalid\s*data'
+      - 'format\s*incorrect'
+      - 'champ\s*obligatoire'
+      - 'required\s*field'
+      - 'valeur\s*incorrecte'
+
+    # ERREURS DE MAINTENANCE
+    "maintenance":
+      - 'maintenance\s*mode'
+      - 'site\s*under\s*maintenance'
+      - 'mode\s*maintenance'
+      - 'site\s*en\s*maintenance'
+      - 'scheduled\s*maintenance'
+      - 'maintenance\s*programmée'
+      - 'service\s*temporarily\s*down'
+      - 'service\s*temporairement\s*arrêté'
+
+    # ERREURS DE PERFORMANCE
+    "performance":
+      - 'request\s*timeout'
+      - 'response\s*timeout'
+      - 'slow\s*response'
+      - 'timeout\s*de\s*requête'
+      - 'réponse\s*lente'
+      - 'server\s*overloaded'
+      - 'serveur\s*surchargé'
+      - 'too\s*many\s*requests'
+      - 'trop\s*de\s*requêtes'
+
+    # ERREURS GÉNÉRIQUES
+    "autre":
+      - 'something\s*went\s*wrong'
+      - 'an\s*error\s*occurred'
+      - 'unexpected\s*error'
+      - 'system\s*error'
+      - 'une\s*erreur.*produite'
+      - 'erreur\s*inattendue'
+      - 'erreur\s*système'
+      - 'problème.*site'
+      - 'looks\s*like.*problem.*site'
+
+  # ----------------------------------------------------------------------------
+  # SÉLECTEURS CSS/XPATH pour rechercher dans les éléments visibles
+  # ----------------------------------------------------------------------------
+  selecteurs:
+    # IDs d'erreur génériques
+    - '#error'
+    - '#erreur'
+    - '#error-message'
+    - '#error-container'
+    - '#errorShortDesc'                    # Firefox
+    - '#response-status-label'             # Firefox
+    
+    # IDs d'erreur spécifiques par type
+    - '#network-error'
+    - '#database-error'
+    - '#security-error'
+    - '#session-error'
+    - '#maintenance-error'
+    - '#business-error'
+    - '#erreur-reseau'
+    - '#erreur-base'
+    - '#erreur-securite'
+    - '#erreur-session'
+    - '#erreur-maintenance'
+    - '#erreur-metier'
+    
+    # Classes d'erreur génériques
+    - '.error'
+    - '.erreur'
+    - '.error-message'
+    - '.error-container'
+    - '.alert-error'
+    - '.alert-danger'
+    - '.notification-error'
+    - '.toast-error'
+    - '.neterror'                          # Firefox
+    
+    # Classes d'erreur spécifiques par type
+    - '.network-error'
+    - '.database-error'
+    - '.security-error'
+    - '.session-error'
+    - '.maintenance-error'
+    - '.business-error'
+    - '.erreur-reseau'
+    - '.erreur-base'
+    - '.erreur-securite'
+    - '.erreur-session'
+    - '.erreur-maintenance'
+    - '.erreur-metier'
+    
+    # Éléments HTML génériques
+    - 'h1'
+    - 'h2'
+    - '.title'
+    - '.main-title'
+    
+    # Attributs spécifiques
+    - '[data-error]'
+    - '[data-error-type]'
+    - '[data-error-code]'
+    - '[data-l10n-id*="error"]'            # Firefox
+    - '[data-l10n-id*="neterror"]'         # Firefox
+    - '[role="alert"]'
+    - '[aria-label*="error"]'
+    - '[aria-label*="erreur"]'
+
+# ==============================================================================
+# DESCRIPTIONS DES CODES D'ERREUR HTTP
+# ==============================================================================
+descriptions_codes:
+  # Erreurs client (4xx)
+  400: "Requête incorrecte"
+  401: "Non autorisé"
+  403: "Accès interdit"
+  404: "Page non trouvée"
+  405: "Méthode non autorisée"
+  408: "Timeout de la requête"
+  429: "Trop de requêtes"
+  
+  # Erreurs serveur (5xx)
+  500: "Erreur interne du serveur"
+  501: "Non implémenté"
+  502: "Mauvaise passerelle"
+  503: "Service indisponible"
+  504: "Timeout de la passerelle"
+  505: "Version HTTP non supportée"
+
+# ==============================================================================
+# DESCRIPTIONS DES TYPES D'ERREUR
+# ==============================================================================
+descriptions_types:
+  # Types HTTP (rétrocompatibilité)
+  "4xx": "Erreur client"
+  "5xx": "Erreur serveur"
+  "3xx": "Redirection"
+  
+  # Nouveaux types d'erreur
+  "reseau": "Erreur réseau"
+  "database": "Erreur base de données"
+  "securite": "Erreur sécurité"
+  "session": "Erreur session"
+  "metier": "Erreur métier"
+  "maintenance": "Erreur maintenance"
+  "performance": "Erreur performance"
+  "autre": "Erreur générique"
