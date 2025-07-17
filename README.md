@@ -1,101 +1,6 @@
 """
-=== 1. config/patterns_erreurs.yaml ===
-Fichier unique de configuration des erreurs
-"""
-
-# Configuration des patterns d'erreur HTTP
-detection_erreurs:
-  # Patterns pour trouver les codes d'erreur HTTP (400, 500, etc.)
-  codes_http:
-    - 'error\s*code\s*:\s*([45]\d{2})'         # Error code: 500
-    - 'code\s*erreur\s*:\s*([45]\d{2})'        # Code erreur: 500
-    - 'responsestatus[^"]*:([45]\d{2})'        # Firefox responsestatus:500
-    - 'status\s*:\s*([45]\d{2})'               # Status: 500
-    - 'http/1\.[01]\s+([45]\d{2})'             # HTTP/1.1 500
-    - '<h1[^>]*>([45]\d{2})'                   # <h1>500</h1>
-
-  # Messages d'erreur sans code spécifique
-  messages_erreur:
-    # Erreurs serveur (5xx)
-    "5xx":
-      - 'internal\s*server\s*error'
-      - 'erreur\s*interne\s*du\s*serveur'
-      - 'service\s*unavailable'
-      - 'service\s*indisponible'
-      - 'bad\s*gateway'
-      - 'gateway\s*timeout'
-      - 'server\s*error'
-      - 'erreur\s*serveur'
-      - 'maintenance\s*en\s*cours'
-      - 'application\s*temporairement\s*indisponible'
-    
-    # Erreurs client (4xx)
-    "4xx":
-      - 'not\s*found'
-      - 'page\s*introuvable'
-      - 'forbidden'
-      - 'accès\s*interdit'
-      - 'unauthorized'
-      - 'non\s*autorisé'
-      - 'session\s*expirée'
-    
-    # Erreurs génériques
-    "autre":
-      - 'looks\s*like.*problem.*site'
-      - 'problème.*site'
-      - 'une\s*erreur.*produite'
-
-  # Sélecteurs CSS pour chercher dans les éléments
-  selecteurs:
-    # IDs d'erreur
-    - '#errorShortDesc'
-    - '#response-status-label'
-    - '#error'
-    - '#erreur'
-    - '#error-message'
-    - '#app-error-container'
-    
-    # Classes d'erreur
-    - '.error'
-    - '.erreur'
-    - '.alert-error'
-    - '.alert-danger'
-    - '.message-error'
-    - '.notification-error'
-    
-    # Éléments HTML
-    - 'h1'
-    - '.title-text'
-    - '[data-l10n-id*="error"]'
-    - '[data-error-type]'
-
-# Descriptions des codes d'erreur
-descriptions_codes:
-  400: "Requête incorrecte"
-  401: "Non autorisé"
-  403: "Accès interdit"
-  404: "Page non trouvée"
-  405: "Méthode non autorisée"
-  408: "Timeout de la requête"
-  429: "Trop de requêtes"
-  500: "Erreur interne du serveur"
-  501: "Non implémenté"
-  502: "Mauvaise passerelle"
-  503: "Service indisponible"
-  504: "Timeout de la passerelle"
-  505: "Version HTTP non supportée"
-
-# Descriptions des types d'erreur
-descriptions_types:
-  "4xx": "Erreur client"
-  "5xx": "Erreur serveur"
-  "3xx": "Redirection"
-  "autre": "Erreur HTTP"
-
-
-"""
-=== 2. src/utils/verificateur_timeout.py ===
-Vérificateur de timeout simplifié
+=== src/utils/verificateur_timeout.py ===
+Vérificateur de timeout avec gestion des fichiers multiples
 """
 
 import logging
@@ -107,51 +12,122 @@ from src.utils.yaml_loader import load_yaml_file
 LOGGER = logging.getLogger(__name__)
 
 class VerificateurTimeout:
-    """Vérificateur de timeout avec configuration externe simple"""
+    """Vérificateur de timeout avec configuration externe multiple"""
     
     def __init__(self, config_execution: Dict):
         self.config_execution = config_execution
-        self.patterns = self._charger_patterns()
+        self.patterns = self._charger_tous_les_patterns()
+        self.patterns_charges = self.patterns is not None
     
-    def _charger_patterns(self) -> Dict:
-        """Charge les patterns d'erreur depuis le fichier YAML"""
+    def _charger_tous_les_patterns(self) -> Optional[Dict]:
+        """Charge tous les patterns d'erreur depuis les fichiers configurés"""
+        patterns_combines = {}
+        fichiers_charges = []
+        
+        # 1. Toujours charger le fichier commun en premier
+        patterns_communs = self._charger_fichier_commun()
+        if patterns_communs:
+            patterns_combines = self._fusionner_patterns(patterns_combines, patterns_communs)
+            fichiers_charges.append("patterns_erreurs.yaml (commun)")
+            LOGGER.info("[VerificateurTimeout] Fichier commun chargé")
+        else:
+            LOGGER.warning("[VerificateurTimeout] ⚠️ Fichier commun introuvable - Aucune détection d'erreur HTTP")
+            return None
+        
+        # 2. Charger les fichiers spécifiques configurés
+        fichiers_specifiques = self._obtenir_fichiers_specifiques()
+        if fichiers_specifiques:
+            for nom_fichier in fichiers_specifiques:
+                patterns_specifiques = self._charger_fichier_specifique(nom_fichier)
+                if patterns_specifiques:
+                    patterns_combines = self._fusionner_patterns(patterns_combines, patterns_specifiques)
+                    fichiers_charges.append(f"{nom_fichier}.yaml")
+                    LOGGER.info(f"[VerificateurTimeout] Fichier spécifique {nom_fichier} chargé")
+                else:
+                    LOGGER.warning(f"[VerificateurTimeout] ⚠️ Fichier spécifique {nom_fichier} introuvable")
+        
+        # 3. Afficher un résumé des fichiers chargés
+        if fichiers_charges:
+            LOGGER.info(f"[VerificateurTimeout] Fichiers chargés: {', '.join(fichiers_charges)}")
+        
+        return patterns_combines
+    
+    def _charger_fichier_commun(self) -> Optional[Dict]:
+        """Charge le fichier de patterns commun"""
         try:
             simu_scenarios = self.config_execution.get('simu_scenarios', '/opt/scenarios_v6')
-            chemin_config = f"{simu_scenarios}/config/patterns_erreurs.yaml"
+            chemin_fichier_commun = f"{simu_scenarios}/config/patterns_erreurs.yaml"
             
-            patterns = load_yaml_file(chemin_config)
-            LOGGER.debug("[VerificateurTimeout] Patterns d'erreur chargés")
-            return patterns
+            return load_yaml_file(chemin_fichier_commun)
         except Exception as e:
-            LOGGER.warning(f"[VerificateurTimeout] Erreur chargement patterns: {e}")
-            return self._patterns_par_defaut()
+            LOGGER.debug(f"[VerificateurTimeout] Erreur chargement fichier commun: {e}")
+            return None
     
-    def _patterns_par_defaut(self) -> Dict:
-        """Patterns par défaut si le fichier n'est pas accessible"""
-        return {
-            'detection_erreurs': {
-                'codes_http': [
-                    'error\s*code\s*:\s*([45]\\d{2})',
-                    'responsestatus[^"]*:([45]\\d{2})'
-                ],
-                'messages_erreur': {
-                    '5xx': ['internal\\s*server\\s*error', 'service\\s*unavailable'],
-                    '4xx': ['not\\s*found', 'forbidden'],
-                    'autre': ['problem.*site']
-                },
-                'selecteurs': ['#errorShortDesc', '.error', 'h1']
-            },
-            'descriptions_codes': {500: 'Erreur serveur', 404: 'Page non trouvée'},
-            'descriptions_types': {'4xx': 'Erreur client', '5xx': 'Erreur serveur', 'autre': 'Erreur HTTP'}
-        }
+    def _obtenir_fichiers_specifiques(self) -> List[str]:
+        """Récupère la liste des fichiers spécifiques depuis la configuration"""
+        # Chercher dans la configuration sous la clé 'fichiers_patterns_erreurs'
+        fichiers_specifiques = self.config_execution.get('fichiers_patterns_erreurs', [])
+        
+        # S'assurer que c'est une liste
+        if isinstance(fichiers_specifiques, str):
+            fichiers_specifiques = [fichiers_specifiques]
+        elif not isinstance(fichiers_specifiques, list):
+            fichiers_specifiques = []
+        
+        LOGGER.debug(f"[VerificateurTimeout] Fichiers spécifiques configurés: {fichiers_specifiques}")
+        return fichiers_specifiques
+    
+    def _charger_fichier_specifique(self, nom_fichier: str) -> Optional[Dict]:
+        """Charge un fichier de patterns spécifique"""
+        try:
+            simu_scenarios = self.config_execution.get('simu_scenarios', '/opt/scenarios_v6')
+            
+            # Ajouter l'extension .yaml si pas présente
+            if not nom_fichier.endswith('.yaml'):
+                nom_fichier = f"{nom_fichier}.yaml"
+            
+            chemin_fichier = f"{simu_scenarios}/config/{nom_fichier}"
+            
+            return load_yaml_file(chemin_fichier)
+        except Exception as e:
+            LOGGER.debug(f"[VerificateurTimeout] Erreur chargement fichier {nom_fichier}: {e}")
+            return None
+    
+    def _fusionner_patterns(self, patterns_base: Dict, nouveaux_patterns: Dict) -> Dict:
+        """Fusionne deux dictionnaires de patterns"""
+        if not patterns_base:
+            return nouveaux_patterns.copy()
+        
+        patterns_fusionnes = patterns_base.copy()
+        
+        for cle, valeur in nouveaux_patterns.items():
+            if cle in patterns_fusionnes:
+                if isinstance(patterns_fusionnes[cle], dict) and isinstance(valeur, dict):
+                    # Fusion récursive pour les dictionnaires
+                    patterns_fusionnes[cle] = self._fusionner_patterns(patterns_fusionnes[cle], valeur)
+                elif isinstance(patterns_fusionnes[cle], list) and isinstance(valeur, list):
+                    # Concaténation pour les listes
+                    patterns_fusionnes[cle] = patterns_fusionnes[cle] + valeur
+                else:
+                    # Remplacement direct
+                    patterns_fusionnes[cle] = valeur
+            else:
+                patterns_fusionnes[cle] = valeur
+        
+        return patterns_fusionnes
     
     def verifier_cause_timeout(self, page: Page) -> Optional[str]:
         """
         Vérifie si un timeout est causé par une erreur HTTP
         
         Returns:
-            str: Message d'erreur HTTP ou None si pas d'erreur
+            str: Message d'erreur HTTP ou None si pas d'erreur ou pas de patterns
         """
+        # Si aucun pattern n'est chargé, ne pas faire de recherche
+        if not self.patterns_charges:
+            LOGGER.debug("[VerificateurTimeout] Aucun pattern chargé - Pas de vérification HTTP")
+            return None
+        
         try:
             # Chercher dans la page principale
             erreurs = self._chercher_erreurs_dans_page(page)
@@ -297,8 +273,8 @@ class VerificateurTimeout:
 
 
 """
-=== 3. src/gestion_exception.py ===
-Gestionnaire d'exception simplifié
+=== src/gestion_exception.py ===
+Gestionnaire d'exception modifié
 """
 
 import re
@@ -354,15 +330,22 @@ def construire_commentaire_erreur(nom_etape: str, execution, url: str,
     if est_timeout(message_exception):
         # Créer le vérificateur et analyser la cause
         verificateur = VerificateurTimeout(execution.config)
-        cause_timeout = verificateur.verifier_cause_timeout(page)
         
-        if cause_timeout:
-            # Timeout causé par une erreur HTTP
-            return f"{base_commentaire} : 🌐 Timeout dû à une erreur HTTP - {cause_timeout}"
+        # Vérifier si des patterns sont chargés
+        if verificateur.patterns_charges:
+            cause_timeout = verificateur.verifier_cause_timeout(page)
+            
+            if cause_timeout:
+                # Timeout causé par une erreur HTTP
+                return f"{base_commentaire} : 🌐 Timeout dû à une erreur HTTP - {cause_timeout}"
+            else:
+                # Timeout normal avec patterns disponibles
+                message_nettoye = nettoyer_message_timeout(message_exception)
+                return f"{base_commentaire} : ⏱️ {message_nettoye}"
         else:
-            # Timeout normal
+            # Aucun pattern chargé - timeout normal avec alerte
             message_nettoye = nettoyer_message_timeout(message_exception)
-            return f"{base_commentaire} : ⏱️ {message_nettoye}"
+            return f"{base_commentaire} : ⏱️ {message_nettoye} (⚠️ Aucun pattern d'erreur HTTP disponible)"
     else:
         # Autre type d'erreur
         message_nettoye = nettoyer_message_erreur(message_exception, execution, url)
@@ -452,47 +435,66 @@ def nettoyer_message_base(message: str) -> str:
 
 
 """
-=== 4. Exemple d'utilisation ===
-Test simple avec la nouvelle configuration
+=== Exemple de configuration dans un fichier scenario.conf ===
 """
 
-def test_exemple_avec_verification_timeout(page, execution, etape):
-    """Exemple d'utilisation - la vérification est automatique"""
-    
-    try:
-        # Action qui peut timeout
-        page.goto("https://exemple.com")
-        page.wait_for_selector("button#submit", timeout=5000)
-        page.click("button#submit")
-        
-        # Si timeout avec erreur HTTP dans la page, le système détectera :
-        # "🌐 Timeout dû à une erreur HTTP - Erreur serveur (5xx) - 500 Erreur interne du serveur"
-        
-        # Si timeout normal, le système affichera :
-        # "⏱️ Attente élément : button#submit dépassé"
-        
-    except Exception as e:
-        # La gestion est automatique
-        gestion_exception(execution, etape, page, e)
+# Dans votre fichier de configuration de scénario (ex: adonis_login.conf)
+# Exemple 1: Aucun fichier spécifique (utilise seulement le fichier commun)
+# identifiant: "adonis_login_001"
+# navigateur: "firefox"
+# ... autres paramètres ...
+
+# Exemple 2: Un seul fichier spécifique
+# identifiant: "adonis_login_001"
+# navigateur: "firefox"
+# fichiers_patterns_erreurs: "patterns_erreurs_adonis"
+# ... autres paramètres ...
+
+# Exemple 3: Plusieurs fichiers spécifiques
+# identifiant: "gestpas_search_001"
+# navigateur: "firefox"
+# fichiers_patterns_erreurs:
+#   - "patterns_erreurs_gestpas"
+#   - "patterns_erreurs_dgfip"
+#   - "patterns_erreurs_common_apps"
+# ... autres paramètres ...
+
+# Exemple 4: Fichier spécifique avec extension
+# identifiant: "custom_app_001"
+# navigateur: "firefox"
+# fichiers_patterns_erreurs: "patterns_erreurs_custom.yaml"
+# ... autres paramètres ...
 
 
 """
-=== 5. Structure des fichiers finale ===
+=== Structure des fichiers attendue ===
 """
 
-# Structure simple :
-# /opt/scenarios_v6/
-# ├── config/
-# │   └── patterns_erreurs.yaml              # Un seul fichier de config
-# ├── scenarios/
-# │   ├── mon_scenario.conf
-# │   └── ...
-# └── ...
+# /opt/scenarios_v6/config/
+# ├── patterns_erreurs.yaml                    # Fichier commun (OBLIGATOIRE)
+# ├── patterns_erreurs_adonis.yaml             # Spécifique à Adonis
+# ├── patterns_erreurs_gestpas.yaml            # Spécifique à Gestpas
+# ├── patterns_erreurs_dgfip.yaml              # Spécifique à DGFIP
+# ├── patterns_erreurs_common_apps.yaml        # Commun à plusieurs apps
+# └── patterns_erreurs_custom.yaml             # Personnalisé
 
-# Dans votre code :
-# - Remplacer timeout_checker.py par verificateur_timeout.py
-# - Remplacer gestion_exception.py par la version simplifiée
-# - Créer le fichier patterns_erreurs.yaml
+"""
+=== Logs d'exemple ===
+"""
 
-# Ajout dans src/utils/__init__.py :
-# from .verificateur_timeout import VerificateurTimeout
+# Configuration sans fichier spécifique :
+# [VerificateurTimeout] Fichier commun chargé
+# [VerificateurTimeout] Fichiers spécifiques configurés: []
+# [VerificateurTimeout] Fichiers chargés: patterns_erreurs.yaml (commun)
+
+# Configuration avec fichiers spécifiques :
+# [VerificateurTimeout] Fichier commun chargé
+# [VerificateurTimeout] Fichiers spécifiques configurés: ['patterns_erreurs_adonis', 'patterns_erreurs_dgfip']
+# [VerificateurTimeout] Fichier spécifique patterns_erreurs_adonis chargé
+# [VerificateurTimeout] Fichier spécifique patterns_erreurs_dgfip chargé
+# [VerificateurTimeout] Fichiers chargés: patterns_erreurs.yaml (commun), patterns_erreurs_adonis.yaml, patterns_erreurs_dgfip.yaml
+
+# Fichier commun introuvable :
+# [VerificateurTimeout] ⚠️ Fichier commun introuvable - Aucune détection d'erreur HTTP
+# [VerificateurTimeout] Aucun pattern chargé - Pas de vérification HTTP
+# Timeout message: "⏱️ Attente élément : button#submit dépassé (⚠️ Aucun pattern d'erreur HTTP disponible)"
