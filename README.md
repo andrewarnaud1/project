@@ -104,14 +104,14 @@ class VerificateurTimeout:
     
     def verifier_cause_timeout(self, page: Page) -> Optional[str]:
         """
-        Vérifie si un timeout est causé par une erreur HTTP
+        Vérifie si un timeout est causé par une erreur visible dans la page
         
         Returns:
-            str: Message d'erreur HTTP ou None si pas d'erreur ou pas de patterns
+            str: Message d'erreur trouvé ou None si pas d'erreur ou pas de patterns
         """
         # Si aucun pattern n'est chargé, ne pas faire de recherche
         if not self.patterns_charges:
-            LOGGER.debug("[VerificateurTimeout] Aucun pattern chargé - Pas de vérification HTTP")
+            LOGGER.debug("[VerificateurTimeout] Aucun pattern chargé - Pas de vérification d'erreur")
             return None
         
         try:
@@ -126,7 +126,6 @@ class VerificateurTimeout:
                         erreurs.extend(erreurs_frame)
                     except Exception as e:
                         LOGGER.debug(f"[VerificateurTimeout] Erreur frame {frame.url}: {e}")
-                        continue
             
             # Retourner la première erreur trouvée
             if erreurs:
@@ -186,7 +185,7 @@ class VerificateurTimeout:
         return erreurs
     
     def _chercher_messages_erreur(self, contenu_html: str) -> List[str]:
-        """Cherche les messages d'erreur génériques"""
+        """Cherche les messages d'erreur génériques de tous types"""
         erreurs = []
         html_minuscule = contenu_html.lower()
         
@@ -196,7 +195,12 @@ class VerificateurTimeout:
             for pattern in patterns:
                 if re.search(pattern, html_minuscule, re.IGNORECASE):
                     description_type = self._get_description_type(type_erreur)
-                    erreurs.append(f"{description_type} ({type_erreur}) détectée")
+                    if type_erreur in ['4xx', '5xx']:
+                        # Garder le format HTTP pour la rétrocompatibilité
+                        erreurs.append(f"{description_type} ({type_erreur}) détectée")
+                    else:
+                        # Nouveau format pour les autres types d'erreur
+                        erreurs.append(f"{description_type} détectée")
                     return erreurs  # Une seule erreur générique
         
         return erreurs
@@ -210,6 +214,7 @@ class VerificateurTimeout:
         for selecteur in selecteurs:
             try:
                 elements = page_ou_frame.locator(selecteur).all()
+                
                 for element in elements:
                     try:
                         texte = element.inner_text(timeout=500).strip()
@@ -221,10 +226,11 @@ class VerificateurTimeout:
                                 message_formate = self._formater_message_erreur(code_erreur)
                                 erreurs.append(message_formate)
                                 return erreurs  # Une seule erreur par élément
-                    except:
-                        continue
-            except:
-                continue
+                    except Exception as e:
+                        LOGGER.debug(f"[VerificateurTimeout] Erreur lecture texte élément {selecteur}: {e}")
+                        
+            except Exception as e:
+                LOGGER.debug(f"[VerificateurTimeout] Erreur sélecteur {selecteur}: {e}")
         
         return erreurs
     
@@ -314,24 +320,32 @@ def construire_commentaire_erreur(nom_etape: str, execution, url: str,
     
     # Vérifier si c'est un timeout
     if est_timeout(message_exception):
-        # Créer le vérificateur et analyser la cause
-        verificateur = VerificateurTimeout(execution.config)
-        
-        # Vérifier si des patterns sont chargés
-        if verificateur.patterns_charges:
-            cause_timeout = verificateur.verifier_cause_timeout(page)
+        try:
+            # Créer le vérificateur et analyser la cause
+            verificateur = VerificateurTimeout(execution.config)
             
-            if cause_timeout:
-                # Timeout causé par une erreur HTTP
-                return f"{base_commentaire} : 🌐 Timeout dû à une erreur HTTP - {cause_timeout}"
+            # Vérifier si des patterns sont chargés
+            if verificateur.patterns_charges:
+                cause_timeout = verificateur.verifier_cause_timeout(page)
+                
+                if cause_timeout:
+                    # Timeout causé par une erreur détectée dans la page
+                    return f"{base_commentaire} : 🌐 Timeout dû à une erreur - {cause_timeout}"
+                else:
+                    # Timeout normal avec patterns disponibles
+                    message_nettoye = nettoyer_message_timeout(message_exception)
+                    return f"{base_commentaire} : ⏱️ {message_nettoye}"
             else:
-                # Timeout normal avec patterns disponibles
+                # Aucun pattern chargé - timeout normal avec alerte
                 message_nettoye = nettoyer_message_timeout(message_exception)
-                return f"{base_commentaire} : ⏱️ {message_nettoye}"
-        else:
-            # Aucun pattern chargé - timeout normal avec alerte
+                return f"{base_commentaire} : ⏱️ {message_nettoye} (⚠️ Aucun pattern d'erreur disponible)"
+                
+        except Exception as e:
+            # Erreur lors de la vérification - fallback vers timeout normal
+            LOGGER.error(f"[VerificateurTimeout] ❌ Erreur lors de la construction de l'erreur: {e}")
+            LOGGER.error(f"[VerificateurTimeout] ❌ Fallback vers timeout normal pour l'étape: {nom_etape}")
             message_nettoye = nettoyer_message_timeout(message_exception)
-            return f"{base_commentaire} : ⏱️ {message_nettoye} (⚠️ Aucun pattern d'erreur HTTP disponible)"
+            return f"{base_commentaire} : ⏱️ {message_nettoye} (⚠️ Erreur vérification)"
     else:
         # Autre type d'erreur
         message_nettoye = nettoyer_message_erreur(message_exception, execution, url)
