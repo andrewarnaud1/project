@@ -1,500 +1,309 @@
-"""
-=== src/utils/verificateur_timeout.py ===
-Vérificateur de timeout avec gestion des fichiers multiples
-"""
+Parfait ! Voici comment faire de la reconnaissance d’image avec Playwright Python pour automatiser des actions dans une VM via Guacamole :
 
-import logging
-import re
-from typing import List, Optional, Dict
-from playwright.sync_api import Page
-from src.utils.yaml_loader import load_yaml_file
+## 1. Installation des dépendances
 
-LOGGER = logging.getLogger(__name__)
+```bash
+pip install playwright opencv-python pillow pytesseract numpy
+playwright install
+```
 
-class VerificateurTimeout:
-    """Vérificateur de timeout avec configuration externe multiple"""
+## 2. Classe helper pour l’automation Guacamole
+
+```python
+import asyncio
+import cv2
+import numpy as np
+from PIL import Image
+import pytesseract
+from playwright.async_api import async_playwright, Page
+import os
+import time
+
+class GuacamoleAutomation:
+    def __init__(self, page: Page):
+        self.page = page
+        self.canvas = None
+        
+    async def initialize(self, guacamole_url: str, username: str, password: str):
+        """Initialise la connexion Guacamole"""
+        await self.page.goto(guacamole_url)
+        
+        # Connexion (adaptez selon votre interface)
+        await self.page.fill('#username', username)
+        await self.page.fill('#password', password)
+        await self.page.click('#login-button')
+        
+        # Attendre et sélectionner la VM
+        await self.page.wait_for_selector('canvas')
+        self.canvas = self.page.locator('canvas')
+        
+    async def take_screenshot(self, path: str = 'temp_screen.png'):
+        """Prend une capture d'écran du canvas"""
+        await self.canvas.screenshot(path=path)
+        return path
+        
+    async def find_image(self, template_path: str, threshold: float = 0.8):
+        """Trouve une image template dans le canvas"""
+        # Prendre une capture d'écran
+        screenshot_path = await self.take_screenshot()
+        
+        # Charger les images
+        screenshot = cv2.imread(screenshot_path)
+        template = cv2.imread(template_path)
+        
+        if screenshot is None or template is None:
+            return {'found': False, 'error': 'Could not load images'}
+        
+        # Conversion en niveaux de gris pour améliorer la détection
+        screenshot_gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+        template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        
+        # Reconnaissance de motif
+        result = cv2.matchTemplate(screenshot_gray, template_gray, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        
+        if max_val >= threshold:
+            # Calculer le centre de l'image trouvée
+            h, w = template_gray.shape
+            center_x = max_loc[0] + w // 2
+            center_y = max_loc[1] + h // 2
+            
+            return {
+                'found': True,
+                'x': center_x,
+                'y': center_y,
+                'confidence': max_val,
+                'top_left': max_loc,
+                'bottom_right': (max_loc[0] + w, max_loc[1] + h)
+            }
+        
+        return {'found': False, 'confidence': max_val}
     
-    def __init__(self, config_execution: Dict):
-        self.config_execution = config_execution
-        self.patterns = self._charger_tous_les_patterns()
-        self.patterns_charges = self.patterns is not None
+    async def wait_for_image(self, template_path: str, timeout: int = 30, threshold: float = 0.8):
+        """Attend qu'une image apparaisse"""
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            result = await self.find_image(template_path, threshold)
+            if result['found']:
+                return result
+            await asyncio.sleep(1)
+        
+        raise TimeoutError(f"Image {template_path} not found within {timeout} seconds")
     
-    def _charger_tous_les_patterns(self) -> Optional[Dict]:
-        """Charge tous les patterns d'erreur depuis les fichiers configurés"""
-        patterns_combines = {}
-        fichiers_charges = []
+    async def click_image(self, template_path: str, threshold: float = 0.8):
+        """Clique sur une image trouvée"""
+        result = await self.wait_for_image(template_path, threshold=threshold)
+        await self.canvas.click(position={'x': result['x'], 'y': result['y']})
+        await asyncio.sleep(0.5)  # Attendre que l'action soit traitée
         
-        # 1. Toujours charger le fichier commun en premier
-        patterns_communs = self._charger_fichier_commun()
-        if patterns_communs:
-            patterns_combines = self._fusionner_patterns(patterns_combines, patterns_communs)
-            fichiers_charges.append("patterns_erreurs.yaml (commun)")
-            LOGGER.info("[VerificateurTimeout] Fichier commun chargé")
-        else:
-            LOGGER.warning("[VerificateurTimeout] ⚠️ Fichier commun introuvable - Aucune détection d'erreur HTTP")
-            return None
+    async def find_text(self, search_text: str, confidence_threshold: int = 60):
+        """Trouve du texte via OCR"""
+        screenshot_path = await self.take_screenshot()
         
-        # 2. Charger les fichiers spécifiques configurés
-        fichiers_specifiques = self._obtenir_fichiers_specifiques()
-        if fichiers_specifiques:
-            for nom_fichier in fichiers_specifiques:
-                patterns_specifiques = self._charger_fichier_specifique(nom_fichier)
-                if patterns_specifiques:
-                    patterns_combines = self._fusionner_patterns(patterns_combines, patterns_specifiques)
-                    fichiers_charges.append(f"{nom_fichier}.yaml")
-                    LOGGER.info(f"[VerificateurTimeout] Fichier spécifique {nom_fichier} chargé")
-                else:
-                    LOGGER.warning(f"[VerificateurTimeout] ⚠️ Fichier spécifique {nom_fichier} introuvable")
-        
-        # 3. Afficher un résumé des fichiers chargés
-        if fichiers_charges:
-            LOGGER.info(f"[VerificateurTimeout] Fichiers chargés: {', '.join(fichiers_charges)}")
-        
-        return patterns_combines
-    
-    def _charger_fichier_commun(self) -> Optional[Dict]:
-        """Charge le fichier de patterns commun"""
+        # Utiliser pytesseract pour l'OCR
         try:
-            simu_scenarios = self.config_execution.get('simu_scenarios', '/opt/scenarios_v6')
-            chemin_fichier_commun = f"{simu_scenarios}/config/patterns_erreurs.yaml"
+            data = pytesseract.image_to_data(Image.open(screenshot_path), output_type=pytesseract.Output.DICT)
             
-            return load_yaml_file(chemin_fichier_commun)
-        except Exception as e:
-            LOGGER.debug(f"[VerificateurTimeout] Erreur chargement fichier commun: {e}")
-            return None
-    
-    def _obtenir_fichiers_specifiques(self) -> List[str]:
-        """Récupère la liste des fichiers spécifiques depuis la configuration"""
-        # Chercher dans la configuration sous la clé 'fichiers_patterns_erreurs'
-        fichiers_specifiques = self.config_execution.get('fichiers_patterns_erreurs', [])
-        
-        # S'assurer que c'est une liste
-        if isinstance(fichiers_specifiques, str):
-            fichiers_specifiques = [fichiers_specifiques]
-        elif not isinstance(fichiers_specifiques, list):
-            fichiers_specifiques = []
-        
-        LOGGER.debug(f"[VerificateurTimeout] Fichiers spécifiques configurés: {fichiers_specifiques}")
-        return fichiers_specifiques
-    
-    def _charger_fichier_specifique(self, nom_fichier: str) -> Optional[Dict]:
-        """Charge un fichier de patterns spécifique"""
-        try:
-            simu_scenarios = self.config_execution.get('simu_scenarios', '/opt/scenarios_v6')
-            
-            # Ajouter l'extension .yaml si pas présente
-            if not nom_fichier.endswith('.yaml'):
-                nom_fichier = f"{nom_fichier}.yaml"
-            
-            chemin_fichier = f"{simu_scenarios}/config/{nom_fichier}"
-            
-            return load_yaml_file(chemin_fichier)
-        except Exception as e:
-            LOGGER.debug(f"[VerificateurTimeout] Erreur chargement fichier {nom_fichier}: {e}")
-            return None
-    
-    def _fusionner_patterns(self, patterns_base: Dict, nouveaux_patterns: Dict) -> Dict:
-        """Fusionne deux dictionnaires de patterns"""
-        if not patterns_base:
-            return nouveaux_patterns.copy()
-        
-        # Fusion simple avec l'opérateur | (Python 3.9+)
-        # ou patterns_base.copy().update(nouveaux_patterns) pour Python < 3.9
-        return patterns_base | nouveaux_patterns
-    
-    def verifier_cause_timeout(self, page: Page) -> Optional[str]:
-        """
-        Vérifie si un timeout est causé par une erreur visible dans la page
-        
-        Returns:
-            str: Message d'erreur trouvé ou None si pas d'erreur ou pas de patterns
-        """
-        # Si aucun pattern n'est chargé, ne pas faire de recherche
-        if not self.patterns_charges:
-            LOGGER.debug("[VerificateurTimeout] Aucun pattern chargé - Pas de vérification d'erreur")
-            return None
-        
-        try:
-            # Chercher dans la page principale
-            erreurs = self._chercher_erreurs_dans_page(page)
-            
-            # Chercher dans toutes les frames
-            for frame in page.frames:
-                if frame != page.main_frame:
-                    try:
-                        erreurs_frame = self._chercher_erreurs_dans_page(frame)
-                        erreurs.extend(erreurs_frame)
-                    except Exception as e:
-                        LOGGER.debug(f"[VerificateurTimeout] Erreur frame {frame.url}: {e}")
-            
-            # Retourner la première erreur trouvée
-            if erreurs:
-                return erreurs[0]
-            
-            return None
-            
-        except Exception as e:
-            LOGGER.debug(f"[VerificateurTimeout] Erreur vérification: {e}")
-            return None
-    
-    def _chercher_erreurs_dans_page(self, page_ou_frame) -> List[str]:
-        """Cherche les erreurs dans une page ou frame"""
-        erreurs = []
-        
-        try:
-            # Récupérer le contenu HTML
-            contenu_html = page_ou_frame.content()
-            
-            # Chercher les codes d'erreur spécifiques
-            erreurs_codes = self._chercher_codes_erreur(contenu_html)
-            erreurs.extend(erreurs_codes)
-            
-            # Si pas de code trouvé, chercher les messages génériques
-            if not erreurs_codes:
-                erreurs_messages = self._chercher_messages_erreur(contenu_html)
-                erreurs.extend(erreurs_messages)
-            
-            # Chercher dans les éléments visibles
-            erreurs_elements = self._chercher_dans_elements(page_ou_frame)
-            erreurs.extend(erreurs_elements)
-            
-        except Exception as e:
-            LOGGER.debug(f"[VerificateurTimeout] Erreur recherche: {e}")
-        
-        return erreurs[:2]  # Limiter à 2 erreurs
-    
-    def _chercher_codes_erreur(self, contenu_html: str) -> List[str]:
-        """Cherche les codes d'erreur HTTP dans le HTML"""
-        erreurs = []
-        html_minuscule = contenu_html.lower()
-        
-        patterns_codes = self.patterns.get('detection_erreurs', {}).get('codes_http', [])
-        
-        for pattern in patterns_codes:
-            matches = re.finditer(pattern, html_minuscule, re.IGNORECASE)
-            for match in matches:
-                if match.groups():
-                    code_erreur = int(match.group(1))
-                    message_formate = self._formater_message_erreur(code_erreur)
-                    erreurs.append(message_formate)
+            for i, text in enumerate(data['text']):
+                if (search_text.lower() in text.lower() and 
+                    int(data['conf'][i]) > confidence_threshold):
                     
-                    # Limiter à 2 codes
-                    if len(erreurs) >= 2:
-                        return erreurs
-        
-        return erreurs
-    
-    def _chercher_messages_erreur(self, contenu_html: str) -> List[str]:
-        """Cherche les messages d'erreur génériques de tous types"""
-        erreurs = []
-        html_minuscule = contenu_html.lower()
-        
-        messages_erreur = self.patterns.get('detection_erreurs', {}).get('messages_erreur', {})
-        
-        for type_erreur, patterns in messages_erreur.items():
-            for pattern in patterns:
-                if re.search(pattern, html_minuscule, re.IGNORECASE):
-                    description_type = self._get_description_type(type_erreur)
-                    if type_erreur in ['4xx', '5xx']:
-                        # Garder le format HTTP pour la rétrocompatibilité
-                        erreurs.append(f"{description_type} ({type_erreur}) détectée")
-                    else:
-                        # Nouveau format pour les autres types d'erreur
-                        erreurs.append(f"{description_type} détectée")
-                    return erreurs  # Une seule erreur générique
-        
-        return erreurs
-    
-    def _chercher_dans_elements(self, page_ou_frame) -> List[str]:
-        """Cherche dans les éléments visibles"""
-        erreurs = []
-        
-        selecteurs = self.patterns.get('detection_erreurs', {}).get('selecteurs', [])
-        
-        for selecteur in selecteurs:
-            try:
-                elements = page_ou_frame.locator(selecteur).all()
-                
-                for element in elements:
-                    try:
-                        texte = element.inner_text(timeout=500).strip()
-                        if texte:
-                            # Chercher un code d'erreur dans le texte
-                            codes_trouves = re.findall(r'([45]\d{2})', texte)
-                            if codes_trouves:
-                                code_erreur = int(codes_trouves[0])
-                                message_formate = self._formater_message_erreur(code_erreur)
-                                erreurs.append(message_formate)
-                                return erreurs  # Une seule erreur par élément
-                    except Exception as e:
-                        LOGGER.debug(f"[VerificateurTimeout] Erreur lecture texte élément {selecteur}: {e}")
-                        
-            except Exception as e:
-                LOGGER.debug(f"[VerificateurTimeout] Erreur sélecteur {selecteur}: {e}")
-        
-        return erreurs
-    
-    def _formater_message_erreur(self, code_erreur: int) -> str:
-        """Formate un message d'erreur avec le code HTTP"""
-        type_erreur = self._get_type_erreur(code_erreur)
-        description_type = self._get_description_type(type_erreur)
-        description_code = self._get_description_code(code_erreur)
-        
-        return f"{description_type} ({type_erreur}) - {code_erreur} {description_code}"
-    
-    def _get_type_erreur(self, code_erreur: int) -> str:
-        """Détermine le type d'erreur (4xx, 5xx, etc.)"""
-        if 400 <= code_erreur <= 499:
-            return "4xx"
-        elif 500 <= code_erreur <= 599:
-            return "5xx"
-        elif 300 <= code_erreur <= 399:
-            return "3xx"
-        else:
-            return "autre"
-    
-    def _get_description_type(self, type_erreur: str) -> str:
-        """Récupère la description d'un type d'erreur"""
-        descriptions = self.patterns.get('descriptions_types', {})
-        return descriptions.get(type_erreur, "Erreur inconnue")
-    
-    def _get_description_code(self, code_erreur: int) -> str:
-        """Récupère la description d'un code d'erreur"""
-        descriptions = self.patterns.get('descriptions_codes', {})
-        return descriptions.get(code_erreur, f"Code {code_erreur}")
-
-
-"""
-=== src/gestion_exception.py ===
-Gestionnaire d'exception modifié
-"""
-
-import re
-import logging
-import pytest
-from playwright.sync_api import Page
-
-from src.utils.utils import contexte_actuel
-from src.utils.screenshot_manager import take_screenshot
-from src.utils.verificateur_timeout import VerificateurTimeout
-
-LOGGER = logging.getLogger(__name__)
-
-def gestion_exception(execution, etape, page: Page, exception: Exception):
-    """Gestion des exceptions avec vérification timeout"""
-    methode_name = contexte_actuel()
-    LOGGER.debug('[%s] ---- DEBUT ----', methode_name)
-    
-    # URL pour le rapport
-    if len(execution.etapes) == 0:
-        url = execution.config.get('url_initiale')
-    else:
-        url = page.url
-    
-    # Construire le commentaire d'erreur
-    commentaire = construire_commentaire_erreur(
-        etape.etape['nom'], 
-        execution, 
-        url, 
-        exception, 
-        page
-    )
-    
-    LOGGER.error(f"❌ {commentaire}")
-    LOGGER.error(f"❌ Exception: {exception}")
-    
-    etape.finalise(execution.compteur_etape, 2, url, commentaire)
-    
-    # Screenshot et sortie
-    take_screenshot(execution, etape, page, erreur=True)
-    LOGGER.info('[%s] Appel de pytest.exit(2)', methode_name)
-    pytest.exit(2)
-
-
-def construire_commentaire_erreur(nom_etape: str, execution, url: str, 
-                                exception: Exception, page: Page) -> str:
-    """Construit le commentaire d'erreur en vérifiant la cause"""
-    
-    base_commentaire = f"KO - Etape {execution.compteur_etape} {nom_etape}"
-    message_exception = str(exception)
-    
-    # Vérifier si c'est un timeout
-    if est_timeout(message_exception):
-        try:
-            # Créer le vérificateur et analyser la cause
-            verificateur = VerificateurTimeout(execution.config)
+                    # Calculer le centre du texte
+                    x = data['left'][i] + data['width'][i] // 2
+                    y = data['top'][i] + data['height'][i] // 2
+                    
+                    return {
+                        'found': True,
+                        'x': x,
+                        'y': y,
+                        'confidence': data['conf'][i],
+                        'text': text
+                    }
             
-            # Vérifier si des patterns sont chargés
-            if verificateur.patterns_charges:
-                cause_timeout = verificateur.verifier_cause_timeout(page)
-                
-                if cause_timeout:
-                    # Timeout causé par une erreur détectée dans la page
-                    return f"{base_commentaire} : 🌐 Timeout dû à une erreur - {cause_timeout}"
-                else:
-                    # Timeout normal avec patterns disponibles
-                    message_nettoye = nettoyer_message_timeout(message_exception)
-                    return f"{base_commentaire} : ⏱️ {message_nettoye}"
-            else:
-                # Aucun pattern chargé - timeout normal avec alerte
-                message_nettoye = nettoyer_message_timeout(message_exception)
-                return f"{base_commentaire} : ⏱️ {message_nettoye} (⚠️ Aucun pattern d'erreur disponible)"
-                
+            return {'found': False}
+            
         except Exception as e:
-            # Erreur lors de la vérification - fallback vers timeout normal
-            LOGGER.error(f"[VerificateurTimeout] ❌ Erreur lors de la construction de l'erreur: {e}")
-            LOGGER.error(f"[VerificateurTimeout] ❌ Fallback vers timeout normal pour l'étape: {nom_etape}")
-            message_nettoye = nettoyer_message_timeout(message_exception)
-            return f"{base_commentaire} : ⏱️ {message_nettoye} (⚠️ Erreur vérification)"
-    else:
-        # Autre type d'erreur
-        message_nettoye = nettoyer_message_erreur(message_exception, execution, url)
-        return f"{base_commentaire} : {message_nettoye}"
-
-
-def est_timeout(message_exception: str) -> bool:
-    """Vérifie si l'exception est un timeout"""
-    mots_cles_timeout = [
-        'timeout', 'timed out', 'exceeded', 'délai', 'dépassé',
-        'wait_for', 'waiting for', 'attente'
-    ]
+            return {'found': False, 'error': str(e)}
     
-    message_minuscule = message_exception.lower()
-    return any(mot_cle in message_minuscule for mot_cle in mots_cles_timeout)
-
-
-def nettoyer_message_timeout(message_exception: str) -> str:
-    """Nettoie et traduit les messages de timeout"""
-    message = nettoyer_message_base(message_exception)
+    async def wait_for_text(self, search_text: str, timeout: int = 30):
+        """Attend qu'un texte apparaisse"""
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            result = await self.find_text(search_text)
+            if result['found']:
+                return result
+            await asyncio.sleep(1)
+        
+        raise TimeoutError(f"Text '{search_text}' not found within {timeout} seconds")
     
-    # Traductions spécifiques aux timeouts
-    message = re.sub(r'Locator\.wait_for:', 'Attente élément :', message)
-    message = re.sub(r'exceeded', 'dépassé', message)
-    message = re.sub(r'to be visible', 'visible', message)
-    message = re.sub(r'Call log:.*', '', message)
-    message = re.sub(r'\s+', ' ', message).strip()
+    async def click_text(self, search_text: str):
+        """Clique sur un texte trouvé"""
+        result = await self.wait_for_text(search_text)
+        await self.canvas.click(position={'x': result['x'], 'y': result['y']})
+        await asyncio.sleep(0.5)
+        
+    async def type_text(self, text: str):
+        """Tape du texte"""
+        await self.page.keyboard.type(text)
+        
+    async def send_key(self, key: str):
+        """Envoie une touche spécifique"""
+        await self.page.keyboard.press(key)
+        
+    async def double_click_image(self, template_path: str, threshold: float = 0.8):
+        """Double-clique sur une image"""
+        result = await self.wait_for_image(template_path, threshold=threshold)
+        await self.canvas.dblclick(position={'x': result['x'], 'y': result['y']})
+        await asyncio.sleep(0.5)
+        
+    async def right_click_image(self, template_path: str, threshold: float = 0.8):
+        """Clic droit sur une image"""
+        result = await self.wait_for_image(template_path, threshold=threshold)
+        await self.canvas.click(position={'x': result['x'], 'y': result['y']}, button='right')
+        await asyncio.sleep(0.5)
+```
+
+## 3. Exemple d’utilisation complète
+
+```python
+async def main():
+    async with async_playwright() as p:
+        # Lancer le navigateur
+        browser = await p.chromium.launch(headless=False)
+        page = await browser.new_page()
+        
+        # Initialiser l'automation
+        automation = GuacamoleAutomation(page)
+        await automation.initialize(
+            guacamole_url="http://your-guacamole-server",
+            username="your-username",
+            password="your-password"
+        )
+        
+        try:
+            # Attendre que le bureau soit chargé
+            await automation.wait_for_image("desktop_background.png", timeout=60)
+            print("Bureau chargé !")
+            
+            # Ouvrir le menu démarrer (Windows)
+            await automation.click_image("start_button.png")
+            
+            # Ou utiliser OCR pour cliquer sur du texte
+            await automation.click_text("Notepad")
+            
+            # Attendre que Notepad s'ouvre
+            await automation.wait_for_image("notepad_window.png")
+            
+            # Taper du texte
+            await automation.type_text("Hello from Playwright Python!")
+            
+            # Sauvegarder (Ctrl+S)
+            await automation.send_key("Control+s")
+            
+            # Attendre la boîte de dialogue de sauvegarde
+            await automation.wait_for_text("Save As")
+            
+            # Taper le nom du fichier
+            await automation.type_text("test_file.txt")
+            
+            # Cliquer sur Save
+            await automation.click_text("Save")
+            
+            print("Automation terminée avec succès !")
+            
+        except Exception as e:
+            print(f"Erreur: {e}")
+            
+        finally:
+            await browser.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 4. Utilitaires supplémentaires
+
+```python
+class ImageUtils:
+    @staticmethod
+    def create_template_from_screenshot(screenshot_path: str, x: int, y: int, width: int, height: int, output_path: str):
+        """Crée un template à partir d'une zone d'une capture d'écran"""
+        image = cv2.imread(screenshot_path)
+        template = image[y:y+height, x:x+width]
+        cv2.imwrite(output_path, template)
+        
+    @staticmethod
+    def enhance_image_for_ocr(image_path: str, output_path: str):
+        """Améliore une image pour l'OCR"""
+        image = cv2.imread(image_path)
+        
+        # Conversion en niveaux de gris
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Réduction du bruit
+        denoised = cv2.medianBlur(gray, 3)
+        
+        # Amélioration du contraste
+        enhanced = cv2.convertScaleAbs(denoised, alpha=1.5, beta=0)
+        
+        cv2.imwrite(output_path, enhanced)
+        
+    @staticmethod
+    def find_multiple_images(screenshot_path: str, template_path: str, threshold: float = 0.8):
+        """Trouve plusieurs occurrences d'une image"""
+        screenshot = cv2.imread(screenshot_path, cv2.IMREAD_GRAYSCALE)
+        template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+        
+        result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
+        locations = np.where(result >= threshold)
+        
+        matches = []
+        h, w = template.shape
+        
+        for pt in zip(*locations[::-1]):
+            matches.append({
+                'x': pt[0] + w // 2,
+                'y': pt[1] + h // 2,
+                'confidence': result[pt[1], pt[0]]
+            })
+        
+        return matches
+```
+
+## 5. Configuration et conseils
+
+```python
+# Configuration pour pytesseract (si besoin)
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Windows
+
+# Pour de meilleures performances OCR
+def configure_tesseract_for_gui():
+    """Configuration optimisée pour les interfaces graphiques"""
+    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '
+    return custom_config
+
+# Utilisation avec configuration personnalisée
+async def find_text_optimized(self, search_text: str):
+    screenshot_path = await self.take_screenshot()
+    custom_config = configure_tesseract_for_gui()
     
-    return message
+    data = pytesseract.image_to_data(
+        Image.open(screenshot_path), 
+        config=custom_config,
+        output_type=pytesseract.Output.DICT
+    )
+    # ... reste du code
+```
 
+## Conseils pour de meilleurs résultats
 
-def nettoyer_message_erreur(message: str, execution, url: str) -> str:
-    """Nettoie les messages d'erreur (fonction existante simplifiée)"""
-    if 'Page.goto' in message:
-        return nettoyer_erreur_navigation(message, execution, url)
-    elif 'Locator.wait_for' in message:
-        return nettoyer_erreur_attente(message)
-    elif 'Locator expected to be visible' in message:
-        return nettoyer_erreur_visibilite(message)
-    else:
-        return nettoyer_message_base(message)
+1. **Qualité des templates** : Créez des templates nets et contrastés
+1. **Seuils adaptatifs** : Ajustez le threshold selon le contexte (0.7-0.9)
+1. **Gestion des résolutions** : Testez sur différentes résolutions d’écran
+1. **OCR optimisé** : Utilisez des configurations Tesseract adaptées à votre interface
+1. **Gestion d’erreurs** : Implémentez des retry et des timeouts appropriés
 
-
-def nettoyer_erreur_navigation(message: str, execution, url: str) -> str:
-    """Nettoie les erreurs de navigation"""
-    message = re.sub(r"^Page\.goto:", f"Ouverture {url} : ", message)
-    message = re.sub(r"Call log:.*$", "", message, flags=re.DOTALL)
-    
-    # Traduction des codes d'erreur Firefox
-    traductions = {
-        "NS_ERROR_CONNECTION_REFUSED": "Connexion au serveur refusée",
-        "NS_ERROR_NET_TIMEOUT": "Timeout de connexion",
-        "NS_ERROR_UNKNOWN_HOST": "Nom d'hôte introuvable",
-        "SSL_ERROR_UNKNOWN": "Erreur de connexion sécurisée"
-    }
-    
-    for code, traduction in traductions.items():
-        message = re.sub(rf"\b{code}\b", traduction, message)
-    
-    return message.strip()
-
-
-def nettoyer_erreur_attente(message: str) -> str:
-    """Nettoie les erreurs d'attente d'élément"""
-    message = re.sub(r"^Locator.wait_for:", "Attente élément :", message)
-    message = re.sub(r"exceeded", "dépassé", message)
-    message = re.sub(r"to be visible", "visible", message)
-    message = re.sub(r"Call log:.*", "", message)
-    return message.strip()
-
-
-def nettoyer_erreur_visibilite(message: str) -> str:
-    """Nettoie les erreurs de visibilité"""
-    message = re.sub(r"Locator expected to be visible", "Élément attendu visible", message)
-    message = re.sub(r"Actual value:", "Valeur obtenue :", message)
-    message = re.sub(r"Call log:.*", "", message)
-    return message.strip()
-
-
-def nettoyer_message_base(message: str) -> str:
-    """Nettoyage de base pour tous les messages"""
-    return (message.replace("\n", " ")
-                  .replace("\r", " ")
-                  .replace("\\", "/")
-                  .replace('"', "'")
-                  .strip())
-
-
-"""
-=== Exemple de configuration dans un fichier scenario.conf ===
-"""
-
-# Dans votre fichier de configuration de scénario (ex: adonis_login.conf)
-# Exemple 1: Aucun fichier spécifique (utilise seulement le fichier commun)
-# identifiant: "adonis_login_001"
-# navigateur: "firefox"
-# ... autres paramètres ...
-
-# Exemple 2: Un seul fichier spécifique
-# identifiant: "adonis_login_001"
-# navigateur: "firefox"
-# fichiers_patterns_erreurs: "patterns_erreurs_adonis"
-# ... autres paramètres ...
-
-# Exemple 3: Plusieurs fichiers spécifiques
-# identifiant: "gestpas_search_001"
-# navigateur: "firefox"
-# fichiers_patterns_erreurs:
-#   - "patterns_erreurs_gestpas"
-#   - "patterns_erreurs_dgfip"
-#   - "patterns_erreurs_common_apps"
-# ... autres paramètres ...
-
-# Exemple 4: Fichier spécifique avec extension
-# identifiant: "custom_app_001"
-# navigateur: "firefox"
-# fichiers_patterns_erreurs: "patterns_erreurs_custom.yaml"
-# ... autres paramètres ...
-
-
-"""
-=== Structure des fichiers attendue ===
-"""
-
-# /opt/scenarios_v6/config/
-# ├── patterns_erreurs.yaml                    # Fichier commun (OBLIGATOIRE)
-# ├── patterns_erreurs_adonis.yaml             # Spécifique à Adonis
-# ├── patterns_erreurs_gestpas.yaml            # Spécifique à Gestpas
-# ├── patterns_erreurs_dgfip.yaml              # Spécifique à DGFIP
-# ├── patterns_erreurs_common_apps.yaml        # Commun à plusieurs apps
-# └── patterns_erreurs_custom.yaml             # Personnalisé
-
-"""
-=== Logs d'exemple ===
-"""
-
-# Configuration sans fichier spécifique :
-# [VerificateurTimeout] Fichier commun chargé
-# [VerificateurTimeout] Fichiers spécifiques configurés: []
-# [VerificateurTimeout] Fichiers chargés: patterns_erreurs.yaml (commun)
-
-# Configuration avec fichiers spécifiques :
-# [VerificateurTimeout] Fichier commun chargé
-# [VerificateurTimeout] Fichiers spécifiques configurés: ['patterns_erreurs_adonis', 'patterns_erreurs_dgfip']
-# [VerificateurTimeout] Fichier spécifique patterns_erreurs_adonis chargé
-# [VerificateurTimeout] Fichier spécifique patterns_erreurs_dgfip chargé
-# [VerificateurTimeout] Fichiers chargés: patterns_erreurs.yaml (commun), patterns_erreurs_adonis.yaml, patterns_erreurs_dgfip.yaml
-
-# Fichier commun introuvable :
-# [VerificateurTimeout] ⚠️ Fichier commun introuvable - Aucune détection d'erreur HTTP
-# [VerificateurTimeout] Aucun pattern chargé - Pas de vérification HTTP
-# Timeout message: "⏱️ Attente élément : button#submit dépassé (⚠️ Aucun pattern d'erreur HTTP disponible)"
+Cette approche vous donnera une solution robuste pour automatiser n’importe quelle application dans votre VM via Guacamole !​​​​​​​​​​​​​​​​
