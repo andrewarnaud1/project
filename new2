@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+“””
+Script principal pour exécuter les tests end-to-end Guacamole
+“””
+import sys
+import argparse
+from pathlib import Path
+
+# Ajouter le répertoire parent au path pour les imports
+
+sys.path.append(str(Path(**file**).parent))
+
+from guacamole_test_manager import GuacamoleTestManager
+
+def main():
+“”“Fonction principale”””
+parser = argparse.ArgumentParser(description=“Tests E2E pour Guacamole”)
+parser.add_argument(”–output-dir”, “-o”, default=“test_outputs”,
+help=“Répertoire de sortie pour les screenshots et logs”)
+parser.add_argument(”–headless”, action=“store_true”,
+help=“Exécuter en mode headless”)
+parser.add_argument(”–max-retries”, “-r”, type=int, default=3,
+help=“Nombre maximum de tentatives par action”)
+parser.add_argument(”–guacamole-url”, default=“http://192.168.210.36:8080”,
+help=“URL de Guacamole”)
+parser.add_argument(”–guacamole-user”, default=“admpsn”,
+help=“Utilisateur Guacamole”)
+parser.add_argument(”–guacamole-pass”, default=“Expression69CT”,
+help=“Mot de passe Guacamole”)
+parser.add_argument(”–ulysse-user”, default=“psn-consult-b.psn-consult-b”,
+help=“Utilisateur Ulysse”)
+parser.add_argument(”–ulysse-pass”, default=“LU78RK93”,
+help=“Mot de passe Ulysse”)
+
+```
+args = parser.parse_args()
+
+# Créer le gestionnaire de test
+test_manager = GuacamoleTestManager(
+    output_dir=args.output_dir,
+    max_retries=args.max_retries
+)
+
+try:
+    print(f"🚀 Début du test E2E Guacamole")
+    print(f"📁 Répertoire de sortie: {test_manager.output_dir}")
+    print(f"📸 Screenshots: {test_manager.screenshots_dir}")
+    print(f"📝 Logs: {test_manager.logs_dir}")
+    print("-" * 50)
+    
+    # Configuration du navigateur
+    print("⚙️  Initialisation du navigateur...")
+    if not test_manager.setup_browser(headless=args.headless):
+        print("❌ Erreur lors de l'initialisation du navigateur")
+        return 1
+    
+    # Connexion à Guacamole
+    print("🔗 Connexion à Guacamole...")
+    if not test_manager.connect_to_guacamole(
+        url=args.guacamole_url,
+        username=args.guacamole_user,
+        password=args.guacamole_pass
+    ):
+        print("❌ Erreur lors de la connexion à Guacamole")
+        return 1
+    
+    # Attendre le bureau Windows
+    print("🖥️  Attente du bureau Windows...")
+    if not test_manager.wait_for_desktop():
+        print("❌ Bureau Windows non accessible")
+        return 1
+    
+    # Lancer Edge
+    print("🌐 Lancement d'Edge...")
+    if not test_manager.launch_edge_browser():
+        print("❌ Erreur lors du lancement d'Edge")
+        return 1
+    
+    # Ouvrir Ulysse
+    print("📱 Ouverture d'Ulysse...")
+    if not test_manager.open_ulysse_application():
+        print("❌ Erreur lors de l'ouverture d'Ulysse")
+        return 1
+    
+    # Connexion à Ulysse
+    print("🔐 Connexion à Ulysse...")
+    if not test_manager.login_to_ulysse(
+        username=args.ulysse_user,
+        password=args.ulysse_pass
+    ):
+        print("❌ Erreur lors de la connexion à Ulysse")
+        return 1
+    
+    # Recherche et ouverture d'Iliad
+    print("🔍 Recherche et ouverture d'Iliad...")
+    if not test_manager.search_and_open_iliad():
+        print("❌ Erreur lors de l'ouverture d'Iliad")
+        return 1
+    
+    # Configuration du site Iliad
+    print("⚙️  Configuration du site Iliad...")
+    if not test_manager.configure_iliad_site():
+        print("❌ Erreur lors de la configuration du site")
+        return 1
+    
+    # Connexion au site
+    print("🌐 Connexion au site Iliad...")
+    if not test_manager.connect_to_iliad_site():
+        print("❌ Erreur lors de la connexion au site")
+        return 1
+    
+    # Fermeture des applications
+    print("🚪 Fermeture des applications...")
+    if not test_manager.quit_applications():
+        print("⚠️  Problème lors de la fermeture (non critique)")
+    
+    print("-" * 50)
+    print("✅ Test terminé avec succès!")
+    print(f"📊 Nombre total d'étapes: {test_manager.current_step}")
+    print(f"📁 Résultats disponibles dans: {test_manager.output_dir}")
+    
+    return 0
+    
+except KeyboardInterrupt:
+    print("\n⏹️  Test interrompu par l'utilisateur")
+    return 130
+except Exception as e:
+    print(f"❌ Erreur critique: {e}")
+    test_manager.logger.exception("Erreur critique dans le script principal")
+    return 1
+finally:
+    test_manager.cleanup()
+```
+
+if **name** == “**main**”:
+sys.exit(main())
