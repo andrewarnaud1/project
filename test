@@ -1,16 +1,23 @@
+"""
+Script de connection à une VM Windows via Guacamole
+"""
+from playwright.sync_api import sync_playwright, expect
 import cv2
 import pyautogui
-from playwright.sync_api import sync_playwright
+import pyperclip
 import time
 
-def find_image_on_screen(template_path, screenshot_path='screenshot.png'):
+def find_image_on_screen(template_path, screenshot_path="scenarios_techniques/images_guacamole/screenshot.png"):
+    """
+    Permets de comparer deux images.
+    """
     screenshot = cv2.imread(screenshot_path)
     template = cv2.imread(template_path)
     result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
-    
-    threshold = 0.8  # ajuste selon la précision voulue
+
+    threshold = 0.8
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    
+
     if max_val >= threshold:
         print(f"Image trouvée avec une confiance de {max_val}")
         return max_loc
@@ -18,23 +25,440 @@ def find_image_on_screen(template_path, screenshot_path='screenshot.png'):
         print("Image non trouvée")
         return None
 
+def _workaround_write(text):
+    """
+    This is a work-around for the bug in pyautogui.write() with non-QWERTY keyboards
+    It copies the text to clipboard and pastes it, instead of typing it.
+    """
+    print('VOICI LE TEXT À UTILISER', text)
+    pyautogui.hotkey('ctrl', 'shift', 'alt')
+
+    # ----------------------- DEBUT : Vérifier le bouton presse_papier -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/presse_papier.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/presse_papier.png")
+    # ----------------------- FIN : Vérifier le bouton presse_papier -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur le bouton presse_papier -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/presse_papier.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur le bouton presse_papier -----------------------#
+
+    pyperclip.copy(text)
+
+    pyautogui.hotkey('ctrl', 'a')
+
+    pyautogui.hotkey('ctrl', 'v')
+
+    pyautogui.hotkey('ctrl', 'shift')
+
+    pyautogui.hotkey('ctrl', 'v')
+
 with sync_playwright() as p:
-    browser = p.chromium.launch(headless=False)
-    page = browser.new_page()
-    page.goto("https://example.com")
+    # Navigateurs : chromium, firefox ou webkit
+    browser = p.chromium.launch(
+        headless=False,
+        args=["--start-maximized"]
+    )  # pour Chrome/Edge
+    # ou
+    # browser = p.firefox.launch(headless=False)  # pour Firefox
+    # ou
+    # browser = p.webkit.launch(headless=False)   # pour Safari/WebKit
 
-    time.sleep(2)  # attendre le chargement
+    context = browser.new_context(no_viewport=True)
+    page = context.new_page()
 
-    # Prendre une capture d'écran
-    page.screenshot(path="screenshot.png", full_page=True)
+    # Naviguer vers une URL
+    page.goto("http://192.168.210.36:8080")
 
-    # Trouver l’image dans la capture
-    coords = find_image_on_screen("image_a_trouver.png")
-    
-    if coords:
-        # Ajuster les coordonnées selon la position de la fenêtre
-        x, y = coords
-        pyautogui.moveTo(x + 10, y + 10)
-        pyautogui.click()
+    page.get_by_role("textbox", name="Identifiant").fill("admpsn")
+    page.get_by_role("textbox", name="Mot de passe").fill("Expression69CT")
+    page.get_by_role("button", name="Se connecter").click()
+    page.get_by_role("link", name="Windows 11 #4 (.56)").click()
 
+    expect(page.locator(".displayMiddle")).to_be_visible()
+
+    # ----------------------- DEBUT : Vérifier la page d'accueil -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/accueil.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/accueil.png")
+    # ----------------------- FIN : Vérifier la page d'accueil -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur Edge -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/edge.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur Edge -----------------------#
+
+    # ----------------------- DEBUT : Vérifier icone ulysse -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/ulysse.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/ulysse.png")
+    # ----------------------- FIN : Vérifier icone ulysse -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur icone ulysse -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/ulysse.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur icone ulysse -----------------------#
+
+    # ----------------------- DEBUT : Vérifier mes applications -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/mes_applications.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/mes_applications.png")
+    # ----------------------- FIN : Vérifier mes applications -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur mes applications -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/mes_applications.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur mes applications -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton annuler -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/annuler.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/annuler.png")
+    # ----------------------- FIN : Vérifier bouton annuler -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton annuler -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/annuler.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton annuler -----------------------#
+
+    # ----------------------- DEBUT : Vérifier champ identifant -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/identifant.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/identifant.png")
+    # ----------------------- FIN : Vérifier champ identifant -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur champ identifant -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/identifant.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur champ identifant -----------------------#
+
+    # ----------------------- DEBUT : Remplir champ identifant -----------------------#
+    _workaround_write('psn-consult-b.psn-consult-b')
+    # ----------------------- FIN : Remplir champ identifant -----------------------#
+
+    # ----------------------- DEBUT : Vérifier champ mot de passe -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/mot_de_passe.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/mot_de_passe.png")
+    # ----------------------- FIN : Vérifier champ mot de passe -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur champ mot de passe -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/mot_de_passe.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer champ mot de passe -----------------------#
+
+    # ----------------------- DEBUT : Remplir champ mot de passe -----------------------#
+    _workaround_write('LU78RK93')
+    # ----------------------- FIN : Remplir champ mot de passe -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton valider -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/valider.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/valider.png")
+    # ----------------------- FIN : Vérifier bouton valider -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton valider -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/valider.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton valider -----------------------#
+
+    # ----------------------- DEBUT : Vérifier champ rechercher -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/rechercher.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/rechercher.png")
+    # ----------------------- FIN : Vérifier champ rechercher -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur champ rechercher -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/rechercher.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur champ rechercher -----------------------#
+
+    # ----------------------- DEBUT : Remplir champ rechercher -----------------------#
+    pyautogui.write('iliad')
+    # ----------------------- FIN : Remplir champ rechercher -----------------------#
+
+    # ----------------------- DEBUT : Vérifier loupe recherche -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/loupe_recherche.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/loupe_recherche.png")
+    # ----------------------- FIN : Vérifier loupe recherche -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur loupe recherche -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/loupe_recherche.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur loupe recherche -----------------------#
+
+    # ----------------------- DEBUT : Vérifier icone iliad -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/iliad.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/iliad.png")
+    # ----------------------- FIN : Vérifier icone iliad -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur icone iliad -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/iliad.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur icone iliad -----------------------#
+
+    # ----------------------- DEBUT : Vérifier navbar "personnaliser" -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/personnaliser.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/personnaliser.png")
+    # ----------------------- FIN : Vérifier navbar "personnaliser" -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur navbar "personnaliser" -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/personnaliser.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur navbar "personnaliser" -----------------------#
+
+    # ----------------------- DEBUT : Vérifier champs nom site -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/nom_site.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/nom_site.png")
+    # ----------------------- FIN : Vérifier champs nom site -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur champs nom site -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/nom_site.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur champs nom site -----------------------#
+
+    # ----------------------- DEBUT : Remplir champ rechercher -----------------------#
+    pyautogui.write('cle')
+    # ----------------------- FIN : Remplir champ rechercher -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton clermont ferrand -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/clermont_ferrand.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/clermont_ferrand.png")
+    # ----------------------- FIN : Vérifier bouton clermont ferrand -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton clermont ferrand -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/clermont_ferrand.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton clermont ferrand -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton enregistrer -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/enregistrer.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/enregistrer.png")
+    # ----------------------- FIN : Vérifier bouton enregistrer -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton enregistrer -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/enregistrer.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton enregistrer -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton clermont ferrand -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/clermont_ferrand.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/clermont_ferrand.png")
+    # ----------------------- FIN : Vérifier bouton clermont ferrand -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton clermont ferrand -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/clermont_ferrand.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton clermont ferrand -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton se connecter -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/se_connecter.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/se_connecter.png")
+    # ----------------------- FIN : Vérifier bouton se connecter -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton se connecter -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/se_connecter.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton se connecter -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton conserver -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/conserver.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/conserver.png")
+    # ----------------------- FIN : Vérifier bouton conserver -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton conserver -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/conserver.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton conserver -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton ouvrir_un_fichier -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/ouvrir_un_fichier.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/ouvrir_un_fichier.png")
+    # ----------------------- FIN : Vérifier bouton ouvrir_un_fichier -----------------------#
+
+    # ----------------------- DEBUT : Cliquer sur bouton ouvrir_un_fichier -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/ouvrir_un_fichier.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer sur bouton ouvrir_un_fichier -----------------------#
+
+    # ----------------------- DEBUT : Vérifier checkbox j'accepte -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/accepter.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/accepter.png")
+    # ----------------------- FIN : Vérifier checkbox j'accepte -----------------------#
+
+    # ----------------------- DEBUT : Cliquer checkbox j'accepte -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/accepter.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer checkbox j'accepte -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton executer -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/executer.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/executer.png")
+    # ----------------------- FIN : Vérifier bouton executer -----------------------#
+
+    # ----------------------- DEBUT : Cliquer bouton executer -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/executer.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer bouton executer -----------------------#
+
+    # ----------------------- DEBUT : Vérifier navbar "à propos de" -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/a_propos_de.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/a_propos_de.png")
+    # ----------------------- FIN : Vérifier navbar "à propos de" -----------------------#
+
+    # ----------------------- DEBUT : Cliquer navbar "à propos de" -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/a_propos_de.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer navbar "à propos de" -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton quitter iliad -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/quitter_iliad.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/quitter_iliad.png")
+    # ----------------------- FIN : Vérifier bouton quitter iliad -----------------------#
+
+    # ----------------------- DEBUT : Cliquer bouton quitter iliad -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/quitter_iliad.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer bouton quitter iliad -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton "oui" quitter iliad -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/oui_quitter.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/oui_quitter.png")
+    # ----------------------- FIN : Vérifier bouton "oui" quitter iliad -----------------------#
+
+    # ----------------------- DEBUT : Cliquer bouton "oui" quitter iliad -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/oui_quitter.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.leftClick()
+    # ----------------------- FIN : Cliquer bouton "oui" quitter iliad -----------------------#
+
+    # ----------------------- DEBUT : Vérifier bouton fermer edge -----------------------#
+    page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+    coords = find_image_on_screen("scenarios_techniques/images_guacamole/fermer_edge.png")
+
+    while coords is None:
+        page.screenshot(path="scenarios_techniques/images_guacamole/screenshot.png", full_page=True)
+        coords = find_image_on_screen("scenarios_techniques/images_guacamole/fermer_edge.png")
+    # ----------------------- FIN : Vérifier bouton fermer edge -----------------------#
+
+    # ----------------------- DEBUT : Cliquer bouton fermer edge -----------------------#
+    x, y= pyautogui.locateCenterOnScreen("scenarios_techniques/images_guacamole/fermer_edge.png", confidence=0.8, grayscale = True)
+    pyautogui.moveTo(x, y, duration=0.1)
+    pyautogui.click(clicks=3, interval=0.25)
+    # ----------------------- FIN : Cliquer bouton fermer edge -----------------------#
+
+    print('Le script s\'est déroulé sans rencontrer d\'erreur')
+
+    # Fermer le navigateur
     browser.close()
