@@ -1,0 +1,593 @@
+“””
+Gestionnaire de tests end-to-end pour Guacamole avec gestion d’erreurs et screenshots
+“””
+import os
+import cv2
+import pyautogui
+import pyperclip
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, Tuple
+from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext, expect
+import logging
+
+class GuacamoleTestManager:
+def **init**(self, output_dir: str = “test_outputs”, max_retries: int = 3):
+“””
+Initialise le gestionnaire de tests
+
+```
+    Args:
+        output_dir: Répertoire de sortie pour les screenshots et logs
+        max_retries: Nombre maximum de tentatives pour chaque action
+    """
+    self.output_dir = Path(output_dir)
+    self.max_retries = max_retries
+    self.current_step = 0
+    self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Configuration des répertoires
+    self._setup_directories()
+    
+    # Configuration du logging
+    self._setup_logging()
+    
+    # Variables Playwright
+    self.browser: Optional[Browser] = None
+    self.context: Optional[BrowserContext] = None
+    self.page: Optional[Page] = None
+    
+    # Configuration des chemins d'images
+    self.images_dir = Path("scenarios_techniques/images_guacamole")
+
+def _setup_directories(self):
+    """Configure les répertoires de sortie"""
+    self.screenshots_dir = self.output_dir / "screenshots" / self.session_id
+    self.logs_dir = self.output_dir / "logs"
+    
+    # Créer les répertoires s'ils n'existent pas
+    self.screenshots_dir.mkdir(parents=True, exist_ok=True)
+    self.logs_dir.mkdir(parents=True, exist_ok=True)
+
+def _setup_logging(self):
+    """Configure le système de logging"""
+    log_file = self.logs_dir / f"test_{self.session_id}.log"
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()
+        ]
+    )
+    self.logger = logging.getLogger(__name__)
+
+def _take_screenshot(self, action_name: str) -> str:
+    """
+    Prend un screenshot avec un nom descriptif
+    
+    Args:
+        action_name: Nom de l'action en cours
+        
+    Returns:
+        Chemin du screenshot
+    """
+    self.current_step += 1
+    timestamp = datetime.now().strftime("%H%M%S")
+    filename = f"step_{self.current_step:03d}_{timestamp}_{action_name}.png"
+    screenshot_path = self.screenshots_dir / filename
+    
+    try:
+        if self.page:
+            self.page.screenshot(path=str(screenshot_path), full_page=True)
+            self.logger.info(f"Screenshot pris: {filename}")
+        return str(screenshot_path)
+    except Exception as e:
+        self.logger.error(f"Erreur lors de la prise de screenshot: {e}")
+        return ""
+
+def _find_image_on_screen(self, template_path: str, screenshot_path: str = None, threshold: float = 0.8) -> Optional[Tuple[int, int]]:
+    """
+    Compare deux images et retourne la position si trouvée
+    
+    Args:
+        template_path: Chemin vers l'image template
+        screenshot_path: Chemin vers le screenshot (optionnel)
+        threshold: Seuil de confiance
+        
+    Returns:
+        Position (x, y) si trouvée, None sinon
+    """
+    try:
+        if not screenshot_path:
+            screenshot_path = self._take_screenshot("search_template")
+        
+        if not os.path.exists(screenshot_path) or not os.path.exists(template_path):
+            self.logger.warning(f"Fichier non trouvé: {template_path} ou {screenshot_path}")
+            return None
+            
+        screenshot = cv2.imread(screenshot_path)
+        template = cv2.imread(template_path)
+        
+        if screenshot is None or template is None:
+            self.logger.warning("Impossible de charger les images")
+            return None
+        
+        result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        
+        if max_val >= threshold:
+            self.logger.info(f"Image trouvée avec confiance {max_val:.3f}: {template_path}")
+            return max_loc
+        else:
+            self.logger.debug(f"Image non trouvée (confiance {max_val:.3f}): {template_path}")
+            return None
+            
+    except Exception as e:
+        self.logger.error(f"Erreur lors de la recherche d'image: {e}")
+        return None
+
+def _wait_for_element(self, image_name: str, timeout: int = 30) -> bool:
+    """
+    Attend qu'un élément soit visible à l'écran
+    
+    Args:
+        image_name: Nom de l'image à rechercher
+        timeout: Timeout en secondes
+        
+    Returns:
+        True si trouvé, False sinon
+    """
+    template_path = self.images_dir / image_name
+    start_time = time.time()
+    
+    self.logger.info(f"Attente de l'élément: {image_name}")
+    
+    while time.time() - start_time < timeout:
+        screenshot_path = self._take_screenshot(f"wait_{image_name}")
+        coords = self._find_image_on_screen(str(template_path), screenshot_path)
+        
+        if coords is not None:
+            self.logger.info(f"Élément trouvé: {image_name}")
+            return True
+            
+        time.sleep(1)
+    
+    self.logger.error(f"Timeout: élément non trouvé après {timeout}s: {image_name}")
+    return False
+
+def _click_element(self, image_name: str, clicks: int = 1, interval: float = 0.25) -> bool:
+    """
+    Clique sur un élément identifié par son image
+    
+    Args:
+        image_name: Nom de l'image à cliquer
+        clicks: Nombre de clics
+        interval: Intervalle entre les clics
+        
+    Returns:
+        True si succès, False sinon
+    """
+    template_path = self.images_dir / image_name
+    
+    try:
+        self.logger.info(f"Tentative de clic sur: {image_name}")
+        x, y = pyautogui.locateCenterOnScreen(str(template_path), confidence=0.8, grayscale=True)
+        pyautogui.moveTo(x, y, duration=0.1)
+        pyautogui.click(clicks=clicks, interval=interval)
+        
+        self._take_screenshot(f"clicked_{image_name}")
+        self.logger.info(f"Clic réussi sur: {image_name}")
+        return True
+        
+    except Exception as e:
+        self.logger.error(f"Erreur lors du clic sur {image_name}: {e}")
+        self._take_screenshot(f"error_click_{image_name}")
+        return False
+
+def _execute_action_with_retry(self, action_func, action_name: str, *args, **kwargs):
+    """
+    Exécute une action avec retry automatique
+    
+    Args:
+        action_func: Fonction à exécuter
+        action_name: Nom de l'action pour les logs
+        *args, **kwargs: Arguments de la fonction
+        
+    Returns:
+        Résultat de la fonction ou None en cas d'échec
+    """
+    for attempt in range(self.max_retries):
+        try:
+            self.logger.info(f"Exécution: {action_name} (tentative {attempt + 1}/{self.max_retries})")
+            result = action_func(*args, **kwargs)
+            if result:
+                return result
+        except Exception as e:
+            self.logger.warning(f"Échec tentative {attempt + 1} pour {action_name}: {e}")
+            if attempt < self.max_retries - 1:
+                time.sleep(2)
+            else:
+                self.logger.error(f"Échec définitif pour {action_name}")
+                self._take_screenshot(f"final_error_{action_name}")
+    return None
+
+def _workaround_write(self, text: str) -> bool:
+    """
+    Contournement pour écrire du texte via le presse-papier
+    
+    Args:
+        text: Texte à écrire
+        
+    Returns:
+        True si succès, False sinon
+    """
+    try:
+        self.logger.info(f"Écriture du texte: {text}")
+        
+        # Ouvrir le menu presse-papier
+        pyautogui.hotkey('ctrl', 'shift', 'alt')
+        
+        # Attendre et cliquer sur le bouton presse-papier
+        if not self._wait_for_element("presse_papier.png"):
+            return False
+        
+        if not self._click_element("presse_papier.png"):
+            return False
+        
+        # Copier et coller le texte
+        pyperclip.copy(text)
+        pyautogui.hotkey('ctrl', 'a')
+        pyautogui.hotkey('ctrl', 'v')
+        pyautogui.hotkey('ctrl', 'shift')
+        pyautogui.hotkey('ctrl', 'v')
+        
+        self._take_screenshot(f"text_written")
+        return True
+        
+    except Exception as e:
+        self.logger.error(f"Erreur lors de l'écriture du texte: {e}")
+        return False
+
+def setup_browser(self, headless: bool = False) -> bool:
+    """
+    Initialise le navigateur Playwright
+    
+    Args:
+        headless: Mode sans interface graphique
+        
+    Returns:
+        True si succès, False sinon
+    """
+    try:
+        self.logger.info("Initialisation du navigateur")
+        playwright = sync_playwright().start()
+        
+        self.browser = playwright.chromium.launch(
+            headless=headless,
+            args=["--start-maximized"]
+        )
+        
+        self.context = self.browser.new_context(no_viewport=True)
+        self.page = self.context.new_page()
+        
+        self.logger.info("Navigateur initialisé avec succès")
+        return True
+        
+    except Exception as e:
+        self.logger.error(f"Erreur lors de l'initialisation du navigateur: {e}")
+        return False
+
+def connect_to_guacamole(self, url: str = "http://192.168.210.36:8080", username: str = "admpsn", password: str = "Expression69CT") -> bool:
+    """
+    Se connecte à Guacamole
+    
+    Args:
+        url: URL de Guacamole
+        username: Nom d'utilisateur
+        password: Mot de passe
+        
+    Returns:
+        True si succès, False sinon
+    """
+    try:
+        self.logger.info(f"Connexion à Guacamole: {url}")
+        
+        # Navigation vers l'URL
+        self.page.goto(url)
+        self._take_screenshot("guacamole_login_page")
+        
+        # Saisie des identifiants
+        self.page.get_by_role("textbox", name="Identifiant").fill(username)
+        self.page.get_by_role("textbox", name="Mot de passe").fill(password)
+        self._take_screenshot("credentials_filled")
+        
+        # Connexion
+        self.page.get_by_role("button", name="Se connecter").click()
+        self._take_screenshot("login_clicked")
+        
+        # Sélection de la VM
+        self.page.get_by_role("link", name="Windows 11 #4 (.56)").click()
+        self._take_screenshot("vm_selected")
+        
+        # Vérification de la connexion
+        expect(self.page.locator(".displayMiddle")).to_be_visible()
+        self._take_screenshot("vm_connected")
+        
+        self.logger.info("Connexion à Guacamole réussie")
+        return True
+        
+    except Exception as e:
+        self.logger.error(f"Erreur lors de la connexion à Guacamole: {e}")
+        self._take_screenshot("guacamole_connection_error")
+        return False
+
+def wait_for_desktop(self) -> bool:
+    """
+    Attend que le bureau Windows soit accessible
+    
+    Returns:
+        True si succès, False sinon
+    """
+    return self._execute_action_with_retry(
+        self._wait_for_element, 
+        "wait_for_desktop", 
+        "accueil.png"
+    )
+
+def launch_edge_browser(self) -> bool:
+    """
+    Lance le navigateur Edge
+    
+    Returns:
+        True si succès, False sinon
+    """
+    return self._execute_action_with_retry(
+        self._click_element, 
+        "launch_edge", 
+        "edge.png"
+    )
+
+def open_ulysse_application(self) -> bool:
+    """
+    Ouvre l'application Ulysse
+    
+    Returns:
+        True si succès, False sinon
+    """
+    steps = [
+        ("ulysse.png", "click_ulysse_icon"),
+        ("mes_applications.png", "click_mes_applications"),
+        ("annuler.png", "click_annuler")
+    ]
+    
+    for image_name, action_name in steps:
+        if not self._wait_for_element(image_name):
+            return False
+        if not self._execute_action_with_retry(self._click_element, action_name, image_name):
+            return False
+    
+    return True
+
+def login_to_ulysse(self, username: str = "psn-consult-b.psn-consult-b", password: str = "LU78RK93") -> bool:
+    """
+    Se connecte à l'application Ulysse
+    
+    Args:
+        username: Nom d'utilisateur
+        password: Mot de passe
+        
+    Returns:
+        True si succès, False sinon
+    """
+    # Saisir l'identifiant
+    if not self._wait_for_element("identifant.png"):
+        return False
+    if not self._click_element("identifant.png"):
+        return False
+    if not self._workaround_write(username):
+        return False
+    
+    # Saisir le mot de passe
+    if not self._wait_for_element("mot_de_passe.png"):
+        return False
+    if not self._click_element("mot_de_passe.png"):
+        return False
+    if not self._workaround_write(password):
+        return False
+    
+    # Valider
+    if not self._wait_for_element("valider.png"):
+        return False
+    if not self._click_element("valider.png"):
+        return False
+    
+    return True
+
+def search_and_open_iliad(self) -> bool:
+    """
+    Recherche et ouvre l'application Iliad
+    
+    Returns:
+        True si succès, False sinon
+    """
+    # Rechercher Iliad
+    if not self._wait_for_element("rechercher.png"):
+        return False
+    if not self._click_element("rechercher.png"):
+        return False
+    
+    # Saisir "iliad"
+    pyautogui.write('iliad')
+    self._take_screenshot("iliad_typed")
+    
+    # Cliquer sur la loupe
+    if not self._wait_for_element("loupe_recherche.png"):
+        return False
+    if not self._click_element("loupe_recherche.png"):
+        return False
+    
+    # Ouvrir Iliad
+    if not self._wait_for_element("iliad.png"):
+        return False
+    if not self._click_element("iliad.png"):
+        return False
+    
+    return True
+
+def configure_iliad_site(self) -> bool:
+    """
+    Configure le site dans Iliad
+    
+    Returns:
+        True si succès, False sinon
+    """
+    steps = [
+        ("personnaliser.png", "click_personnaliser"),
+        ("nom_site.png", "click_nom_site")
+    ]
+    
+    for image_name, action_name in steps:
+        if not self._wait_for_element(image_name):
+            return False
+        if not self._click_element(image_name):
+            return False
+    
+    # Saisir "cle"
+    pyautogui.write('cle')
+    self._take_screenshot("site_name_typed")
+    
+    # Sélectionner Clermont Ferrand
+    if not self._wait_for_element("clermont_ferrand.png"):
+        return False
+    if not self._click_element("clermont_ferrand.png"):
+        return False
+    
+    # Enregistrer
+    if not self._wait_for_element("enregistrer.png"):
+        return False
+    if not self._click_element("enregistrer.png"):
+        return False
+    
+    return True
+
+def connect_to_iliad_site(self) -> bool:
+    """
+    Se connecte au site Iliad
+    
+    Returns:
+        True si succès, False sinon
+    """
+    steps = [
+        ("clermont_ferrand.png", "select_clermont_ferrand"),
+        ("se_connecter.png", "click_se_connecter"),
+        ("conserver.png", "click_conserver"),
+        ("ouvrir_un_fichier.png", "click_ouvrir_fichier"),
+        ("accepter.png", "click_accepter"),
+        ("executer.png", "click_executer")
+    ]
+    
+    for image_name, action_name in steps:
+        if not self._wait_for_element(image_name):
+            return False
+        if not self._click_element(image_name):
+            return False
+    
+    return True
+
+def quit_applications(self) -> bool:
+    """
+    Quitte les applications
+    
+    Returns:
+        True si succès, False sinon
+    """
+    steps = [
+        ("a_propos_de.png", "click_a_propos"),
+        ("quitter_iliad.png", "click_quitter_iliad"),
+        ("oui_quitter.png", "confirm_quit"),
+        ("fermer_edge.png", "close_edge")
+    ]
+    
+    for image_name, action_name in steps:
+        if not self._wait_for_element(image_name):
+            continue  # Certains éléments peuvent ne pas être présents
+        
+        if image_name == "fermer_edge.png":
+            self._click_element(image_name, clicks=3, interval=0.25)
+        else:
+            self._click_element(image_name)
+    
+    return True
+
+def cleanup(self):
+    """Nettoie les ressources"""
+    try:
+        if self.browser:
+            self.browser.close()
+        self.logger.info("Nettoyage des ressources terminé")
+    except Exception as e:
+        self.logger.error(f"Erreur lors du nettoyage: {e}")
+
+def run_complete_test(self) -> bool:
+    """
+    Exécute le test complet
+    
+    Returns:
+        True si succès, False sinon
+    """
+    try:
+        self.logger.info("=== DÉBUT DU TEST E2E GUACAMOLE ===")
+        
+        # Initialisation
+        if not self.setup_browser():
+            return False
+        
+        # Connexion à Guacamole
+        if not self.connect_to_guacamole():
+            return False
+        
+        # Attendre le bureau
+        if not self.wait_for_desktop():
+            return False
+        
+        # Lancer Edge
+        if not self.launch_edge_browser():
+            return False
+        
+        # Ouvrir Ulysse
+        if not self.open_ulysse_application():
+            return False
+        
+        # Se connecter à Ulysse
+        if not self.login_to_ulysse():
+            return False
+        
+        # Rechercher et ouvrir Iliad
+        if not self.search_and_open_iliad():
+            return False
+        
+        # Configurer le site Iliad
+        if not self.configure_iliad_site():
+            return False
+        
+        # Se connecter au site
+        if not self.connect_to_iliad_site():
+            return False
+        
+        # Quitter les applications
+        if not self.quit_applications():
+            return False
+        
+        self.logger.info("=== TEST E2E TERMINÉ AVEC SUCCÈS ===")
+        return True
+        
+    except Exception as e:
+        self.logger.error(f"Erreur critique lors du test: {e}")
+        self._take_screenshot("critical_error")
+        return False
+    finally:
+        self.cleanup()
+```
