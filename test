@@ -1,0 +1,40 @@
+import cv2
+import pyautogui
+from playwright.sync_api import sync_playwright
+import time
+
+def find_image_on_screen(template_path, screenshot_path='screenshot.png'):
+    screenshot = cv2.imread(screenshot_path)
+    template = cv2.imread(template_path)
+    result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
+    
+    threshold = 0.8  # ajuste selon la précision voulue
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+    
+    if max_val >= threshold:
+        print(f"Image trouvée avec une confiance de {max_val}")
+        return max_loc
+    else:
+        print("Image non trouvée")
+        return None
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=False)
+    page = browser.new_page()
+    page.goto("https://example.com")
+
+    time.sleep(2)  # attendre le chargement
+
+    # Prendre une capture d'écran
+    page.screenshot(path="screenshot.png", full_page=True)
+
+    # Trouver l’image dans la capture
+    coords = find_image_on_screen("image_a_trouver.png")
+    
+    if coords:
+        # Ajuster les coordonnées selon la position de la fenêtre
+        x, y = coords
+        pyautogui.moveTo(x + 10, y + 10)
+        pyautogui.click()
+
+    browser.close()
