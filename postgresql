@@ -1,0 +1,28 @@
+-- Rediriger la sortie vers un fichier dans un répertoire précis
+\o /chemin/vers/votre/repertoire/schema_tables_relations.txt
+
+-- Lister toutes les tables
+\echo '=== LISTE DES TABLES ==='
+\dt+
+
+-- Afficher les relations (clés étrangères)
+\echo '=== RELATIONS ENTRE TABLES ==='
+SELECT
+    tc.table_name AS table_source,
+    kcu.column_name AS colonne_source,
+    ccu.table_name AS table_cible,
+    ccu.column_name AS colonne_cible,
+    tc.constraint_name AS nom_contrainte
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+    AND ccu.table_schema = tc.table_schema
+WHERE tc.constraint_type = 'FOREIGN KEY'
+    AND tc.table_schema = 'public'
+ORDER BY tc.table_name;
+
+-- Remettre la sortie sur le terminal
+\o
