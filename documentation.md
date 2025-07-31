@@ -4,79 +4,67 @@
 
 L'algorithme de vérification du planning d'exécution détermine si un scénario de test automatisé est autorisé à s'exécuter à un moment donné. Cette vérification s'effectue très tôt dans le processus, avant le lancement du navigateur, pour optimiser les ressources Jenkins.
 
-## Arbre de décision
+## Arbre de décision (Graphique Mermaid)
 
-```
-                           DÉBUT
-                             |
-                             v
-                    ┌─────────────────┐
-                    │ LECTURE=false ? │
-                    └─────────────────┘
-                             |
-                  ┌──────────┴──────────┐
-                  │ OUI                 │ NON
-                  v                     v
-            ┌──────────────┐      ┌─────────────────┐
-            │ AUTORISATION │      │ Appel API pour  │
-            │ PAR DÉFAUT   │      │ récupérer les   │
-            │ (mode legacy)│      │ données scénario│
-            └──────────────┘      └─────────────────┘
-                  |                     |
-                  v                     v
-            ┌──────────────┐      ┌─────────────────┐
-            │ ✅ CONTINUER │      │ API réussie ?   │
-            │ EXÉCUTION    │      └─────────────────┘
-            └──────────────┘              |
-                                ┌─────────┴─────────┐
-                                │ OUI               │ NON
-                                v                   v
-                    ┌─────────────────────┐   ┌─────────────────────┐
-                    │ Est-ce un jour      │   │ 📄 SAUVEGARDER     │
-                    │ férié ?             │   │ JSON ERREUR        │
-                    └─────────────────────┘   │ Status: 3 (UNKNOWN)│
-                                |             │ Type: Infrastructure│
-                      ┌─────────┴─────────┐   └─────────────────────┘
-                      │ OUI               │ NON                   |
-                      v                   v                       v
-            ┌─────────────────────┐  ┌─────────────────────┐  ┌──────────────┐
-            │ flag_ferie = true ? │  │ Extraire plages     │  │ ❌ ARRÊT     │
-            └─────────────────────┘  │ horaires du jour    │  │ EXIT CODE 3  │
-                      |              │ courant             │  │ (Infra)      │
-            ┌─────────┴─────────┐    └─────────────────────┘  └──────────────┘
-            │ OUI               │ NON                   |
-            v                   v                       v
-      ┌───────────┐      ┌─────────────────┐    ┌─────────────────────┐
-      │ Continuer │      │ ❌ ARRÊT        │    │ Plages trouvées ?   │
-      │ vers      │      │ "Scénario       │    └─────────────────────┘
-      │ planning  │      │ interdit les    │              |
-      │ horaire   │      │ jours fériés"   │    ┌─────────┴─────────┐
-      └───────────┘      │ EXIT CODE 2     │    │ OUI               │ NON
-            |             │ (Scénario)      │    v                   v
-            |             └─────────────────┘  ┌─────────────────┐ ┌─────────────────┐
-            |                     |            │ Heure courante  │ │ ❌ ARRÊT        │
-            |                     v            │ dans une plage  │ │ "Aucune plage   │
-            |             ┌──────────────┐     │ autorisée ?     │ │ pour ce jour"   │
-            |             │ 🛑 FIN       │     └─────────────────┘ │ EXIT CODE 2     │
-            |             │ PROCESSUS    │               |         │ (Scénario)      │
-            |             └──────────────┘     ┌─────────┴─────────┐ └─────────────────┘
-            |                                  │ OUI               │ NON                |
-            v                                  v                   v                    v
-      ┌───────────┐                    ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐
-      │ Extraire  │                    │ ✅ AUTORISATION │  │ ❌ ARRÊT        │  │ 🛑 FIN       │
-      │ plages... │                    │ D'EXÉCUTION     │  │ "Heure hors     │  │ PROCESSUS    │
-      └───────────┘                    │                 │  │ plages: XX-XX"  │  └──────────────┘
-            |                          │ Lancement du    │  │ EXIT CODE 2     │
-            v                          │ navigateur et   │  │ (Scénario)      │
-    ┌─────────────────┐                │ exécution des   │  └─────────────────┘
-    │ (Suite du       │                │ tests           │            |
-    │ processus       │                └─────────────────┘            v
-    │ comme ci-dessus)│                          |              ┌──────────────┐
-    └─────────────────┘                          v              │ 🛑 FIN       │
-                                        ┌──────────────┐         │ PROCESSUS    │
-                                        │ 🎯 SUCCESS   │         └──────────────┘
-                                        │ COMPLET      │
-                                        └──────────────┘
+Le diagramme ci-dessous illustre le flux complet de décision pour la vérification du planning d'exécution :
+
+```mermaid
+flowchart TD
+    Start([🚀 DÉBUT SCÉNARIO]) --> CheckLecture{LECTURE=false ?}
+    
+    %% Branche LECTURE=false (mode legacy)
+    CheckLecture -->|OUI| Legacy[📝 Mode Legacy<br/>Autorisation par défaut]
+    Legacy --> ContinueLegacy[✅ CONTINUER EXÉCUTION<br/>Lancement navigateur]
+    ContinueLegacy --> SuccessLegacy[🎯 SUCCÈS<br/>EXIT CODE 0]
+    
+    %% Branche LECTURE=true (vérification complète)
+    CheckLecture -->|NON| CallAPI[🌐 Appel API<br/>Récupération données scénario]
+    
+    %% Gestion erreur API
+    CallAPI --> APISuccess{API réussie ?}
+    APISuccess -->|NON| SaveJSON[📄 Sauvegarde JSON<br/>Status: 3 - UNKNOWN<br/>Type: Infrastructure]
+    SaveJSON --> ExitInfra[❌ ARRÊT<br/>EXIT CODE 3<br/>Erreur Infrastructure]
+    
+    %% Vérification jours fériés
+    APISuccess -->|OUI| CheckHoliday{Est-ce un<br/>jour férié ?}
+    
+    %% Cas jour férié
+    CheckHoliday -->|OUI| CheckHolidayFlag{flag_ferie = true ?}
+    CheckHolidayFlag -->|NON| ExitHoliday[❌ ARRÊT<br/>"Scénario interdit<br/>les jours fériés"<br/>EXIT CODE 2]
+    CheckHolidayFlag -->|OUI| ExtractSchedule1[📋 Extraction plages<br/>horaires du jour]
+    
+    %% Cas jour normal
+    CheckHoliday -->|NON| ExtractSchedule2[📋 Extraction plages<br/>horaires du jour]
+    
+    %% Vérification plages horaires
+    ExtractSchedule1 --> CheckScheduleExists{Plages trouvées<br/>pour ce jour ?}
+    ExtractSchedule2 --> CheckScheduleExists
+    
+    CheckScheduleExists -->|NON| ExitNoSchedule[❌ ARRÊT<br/>"Aucune plage horaire<br/>définie pour ce jour"<br/>EXIT CODE 2]
+    
+    CheckScheduleExists -->|OUI| CheckTimeInRange{Heure courante<br/>dans une plage<br/>autorisée ?}
+    
+    %% Résultats finaux
+    CheckTimeInRange -->|NON| ExitOutOfRange[❌ ARRÊT<br/>"Heure hors plages:<br/>XX:XX-XX:XX YY:YY-YY:YY"<br/>EXIT CODE 2]
+    
+    CheckTimeInRange -->|OUI| AuthorizeExecution[✅ AUTORISATION<br/>D'EXÉCUTION<br/>Planning respecté]
+    
+    AuthorizeExecution --> LaunchBrowser[🌐 Lancement navigateur<br/>et exécution tests]
+    
+    LaunchBrowser --> FinalSuccess[🎯 SUCCÈS COMPLET<br/>EXIT CODE 0]
+    
+    %% Styling
+    classDef successClass fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724
+    classDef errorClass fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#721c24
+    classDef warningClass fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404
+    classDef processClass fill:#e2e3e5,stroke:#6c757d,stroke-width:2px,color:#495057
+    classDef decisionClass fill:#cce5ff,stroke:#007bff,stroke-width:2px,color:#004085
+    
+    class SuccessLegacy,ContinueLegacy,AuthorizeExecution,LaunchBrowser,FinalSuccess successClass
+    class ExitInfra,ExitHoliday,ExitNoSchedule,ExitOutOfRange errorClass
+    class SaveJSON,Legacy warningClass
+    class Start,CallAPI,ExtractSchedule1,ExtractSchedule2 processClass
+    class CheckLecture,APISuccess,CheckHoliday,CheckHolidayFlag,CheckScheduleExists,CheckTimeInRange decisionClass
 ```
 
 ## Légende des codes de sortie
