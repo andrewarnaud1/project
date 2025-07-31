@@ -8,7 +8,6 @@ L'algorithme de vérification du planning d'exécution détermine si un scénari
 
 Le diagramme ci-dessous illustre le flux complet de décision pour la vérification du planning d'exécution :
 
-```mermaid
 flowchart TD
     Start([🚀 DÉBUT SCÉNARIO]) --> CheckLecture{LECTURE=false ?}
     
@@ -30,7 +29,7 @@ flowchart TD
     
     %% Cas jour férié
     CheckHoliday -->|OUI| CheckHolidayFlag{flag_ferie = true ?}
-    CheckHolidayFlag -->|NON| ExitHoliday[❌ ARRÊT<br/>"Scénario interdit<br/>les jours fériés"<br/>EXIT CODE 2]
+    CheckHolidayFlag -->|NON| ExitHoliday[❌ ARRÊT<br/>Scénario interdit<br/>les jours fériés<br/>EXIT CODE 2]
     CheckHolidayFlag -->|OUI| ExtractSchedule1[📋 Extraction plages<br/>horaires du jour]
     
     %% Cas jour normal
@@ -40,14 +39,14 @@ flowchart TD
     ExtractSchedule1 --> CheckScheduleExists{Plages trouvées<br/>pour ce jour ?}
     ExtractSchedule2 --> CheckScheduleExists
     
-    CheckScheduleExists -->|NON| ExitNoSchedule[❌ ARRÊT<br/>"Aucune plage horaire<br/>définie pour ce jour"<br/>EXIT CODE 2]
+    CheckScheduleExists -->|NON| ExitNoSchedule[❌ ARRÊT<br/>Aucune plage horaire<br/>définie pour ce jour<br/>EXIT CODE 2]
     
     CheckScheduleExists -->|OUI| CheckTimeInRange{Heure courante<br/>dans une plage<br/>autorisée ?}
     
     %% Résultats finaux
-    CheckTimeInRange -->|NON| ExitOutOfRange[❌ ARRÊT<br/>"Heure hors plages:<br/>XX:XX-XX:XX YY:YY-YY:YY"<br/>EXIT CODE 2]
+    CheckTimeInRange -->|NON| ExitOutOfRange[❌ ARRÊT<br/>Heure hors plages<br/>autorisées<br/>EXIT CODE 2]
     
-    CheckTimeInRange -->|OUI| AuthorizeExecution[✅ AUTORISATION<br/>D'EXÉCUTION<br/>Planning respecté]
+    CheckTimeInRange -->|OUI| AuthorizeExecution[✅ AUTORISATION<br/>EXÉCUTION<br/>Planning respecté]
     
     AuthorizeExecution --> LaunchBrowser[🌐 Lancement navigateur<br/>et exécution tests]
     
@@ -65,7 +64,6 @@ flowchart TD
     class SaveJSON,Legacy warningClass
     class Start,CallAPI,ExtractSchedule1,ExtractSchedule2 processClass
     class CheckLecture,APISuccess,CheckHoliday,CheckHolidayFlag,CheckScheduleExists,CheckTimeInRange decisionClass
-```
 
 ## Légende des codes de sortie
 
