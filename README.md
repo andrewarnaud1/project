@@ -1,671 +1,267 @@
-"""
-Execution - Contexte général de l'execution d'un test
-"""
-
-import os
-import re
-from datetime import datetime
-from pathlib import Path
-import json
-import logging
-import pytest
-
-from src.utils import load_yaml_file
-from src.utils.utils import contexte_actuel
-from src.utils.api import lecture_api_scenario, inscrire_resultats_api
-from src.utils.recuperation_utilisateur import recuperer_utlisateur_isac
-from src.utils.planning_execution import verifier_planning_execution
-# from src.utils.relance import relance
-
-LOGGER = logging.getLogger(__name__)
-
-# sympbole pour se reperer dans les logs !!! 🛑
-
-
-class Execution:
-    """Classe d'éxecution des scénarios"""
-
-    def __init__(self) -> None:
-        """
-        Initialise l'execution un scénario avec un tableau d'étapes vide et charge la configuration.
-        """
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-        self.date = (datetime.now().isoformat(),)
-        self.duree = 0
-        # UNKNOWN par défaut
-        self.status = 3
-        self.commentaire = ""
-        self.injecteur = ""
-        self.navigateur = ""
-        self.interface_ip = ""
-        self.status_initial = ""
-        self.commentaire_initial = ""
-        self.etapes = []
-
-        self.url_initiale_header = ""
-
-        # TODO : Ajouter le nom de l'application et du scénarios que si disponibles
-
-        # Liste des éléments à flouter
-        self.elts_flous = []
-
-        # Création d'un dictionnaire vide pour accueillir les données d'environnement
-        self.environnement = self._get_environnement()
-
-        # Création d'un dictionnaire vide pour accueillir les données API
-        self.donnees_scenario_api = self.creer_donnees_scenario_api()
-
-        # Chargement de la configuration & compteur d'étapes
-        self.config = self.creer_config()
-
-        self.compteur_etape = 0
-
-        LOGGER.debug("[%s] ----  FIN  ----", methode_name)
-
-    def __str__(self) -> str:
-        return f"""
-execution 
-    date : {self.date}
-    duree : {self.duree}
-    status : {self.status}
-    commentaire : {self.commentaire}
-    injecteur : {self.injecteur}
-    navigateur : {self.navigateur}
-    interface_ip : {self.interface_ip}
-    status_inital : {self.status_initial}
-    commentaire_initial : {self.commentaire_initial}
-    etapes : {self.etapes}
-    config : {self.config}
-"""
-
-    def creer_donnees_scenario_api(self) -> dict:
-        """
-        Chargement des données de l'api de LECTURE pour completer la
-        configuration si la variable d'environnement
-        LECTURE n'est pas false.
-
-        Args: None
-
-        Returns:
-            dict: données de l'API
-
-        """
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-
-        donnees_scenario_api = {}
-
-        # Gestion du paramètre de lecture de l'API
-        if not self.environnement.get("lecture", True):
-            LOGGER.info(
-                "[%s] Lecture API désactivé => %s",
-                methode_name,
-                self.environnement.get("lecture"),
-            )
-
-            if self.environnement.get("plateforme") == "prod":
-                LOGGER.warning(
-                    "[%s] ⚠️ Sorties désactivées : environnement prod et lecture API OFF",
-                    methode_name,
-                )
-        else:
-            # Mise à jour du dictionnaire des données API
-            donnees_scenario_api = lecture_api_scenario(
-                url_base_api_injecteur=self.config["url_base_api_injecteur"],
-                identifiant_scenario=self.config["identifiant"],
-            )
-            # LOGGER.info('[%s] --- Données API ---', configuration['scenario'])
-            LOGGER.info(
-                "[%s] api => %s", donnees_scenario_api.get("nom"), donnees_scenario_api
-            )
-            
-        # TODO Controle des parametres
-        LOGGER.debug("[%s] ----  FIN  ---- ", methode_name)
-        return donnees_scenario_api
+flowchart TD
+    Start([🚀 DÉBUT EXÉCUTION<br/>pytest execution]) --> CheckScenarioVar{Variable SCENARIO<br/>définie ?}
     
-
-    def creer_config(self) -> dict:
-        """
-        Chargement de la configuration du scénario à partir
-        de sa configuration et des paramètres d'environnement
-        Le fonction  fait un appel à l'api pour completer la
-        configuration si la variable d'environnement
-        LECTURE n'est pas false.
-
-        Args: None
-
-        Returns:
-            dict: configuration du scenario pouur l'execution
-
-        Note: Le chargement de la configration est effectué à partir
-        de la variable d'environnement SCENARIO
-
-        """
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-
-        params = self._get_params()
-        environnement = self.environnement
-
-        # Lecture du fichier de configuration du scenario
-        configuration = {}
-        config_path = f"{environnement['simu_scenarios']}/config/scenarios/{environnement['scenario']}.conf"
-        try:
-            configuration = load_yaml_file(config_path)
-        except Exception as e:
-            LOGGER.fatal(
-                "[%s]❌ Impossible de lire le fichier de configuration du scenario\n%s",
-                methode_name,
-                e,
-            )
-            pytest.exit()
-
-        # Lecture de la configuration brique commune si définie
-        if "config_commune" in configuration.keys():
-            config_commune_path = f"{environnement['simu_scenarios']}/config/commun/{configuration['config_commune']}.conf"
-            try:
-                configuration_commune = load_yaml_file(config_commune_path)
-            except Exception as e:
-                LOGGER.fatal(
-                    "[%s]❌ Impossible de lire le fichier de configuration de l'etape commune\n%s",
-                    methode_name,
-                    e,
-                )
-                pytest.exit(2)
-            configuration = configuration | configuration_commune
-
-        # Gestion des paramètres url, proxy, navigateur
-        configuration["url_initiale"] = self._get_url_initiale(
-            configuration, environnement
-        )
-        configuration["proxy"] = self._get_proxy(configuration, environnement)
-        configuration["navigateur"] = self._get_navigateur(configuration, environnement)
-
-        # TODO Aggregation paramètres (Pas encore implémenté)
-        configuration = environnement | configuration
-
-        # Indicateur pour désactiver screenshots et rapports
-        # activer_sorties = True
-
-        if self.donnees_scenario_api:
-            configuration["scenario"] = self.donnees_scenario_api.get("nom")
-            LOGGER.info(
-                "[%s] api => %s", configuration["scenario"], self.donnees_scenario_api
-            )
-
-        self.gestion_repertoires_sortie(configuration)
-
-        if "utilisateur_isac" in configuration.keys():
-            # Si la variable utilisateur_isac est présente dans les clés de la configuration
-            # il faut récupérer les données présente dans le fichier
-            utilisateur_isac = self._get_utilisateur_isac(configuration)
-            configuration = configuration | utilisateur_isac
-
-        # Simplification des dictionnaires par plateforme
-        for cle, valeur in list(configuration.items()):
-            if isinstance(valeur, dict) and configuration["plateforme"] in valeur:
-                configuration[cle] = valeur[configuration["plateforme"]]
-                LOGGER.debug(
-                    "[%s] %s simplifié pour %s => %s",
-                    methode_name,
-                    cle,
-                    configuration["plateforme"],
-                    configuration[cle],
-                )
-
-        # Chemin des images à lire pour les scénarios exadata (CHEMIN_IMAGES_EXADATA)
-        configuration["chemin_images_exadata"] = f"{environnement.get("simu_scenarios")}/scenarios_exadata/images/{configuration["scenario"]}"
-
-        # Affichage de la configuration
-        LOGGER.info("[%s] --- Configuration ---", configuration["scenario"])
-        LOGGER.info(
-            "[%s] navigateur => %s",
-            configuration["scenario"],
-            configuration["navigateur"],
-        )
-        LOGGER.info(
-            "[%s] plateforme => %s",
-            configuration["scenario"],
-            configuration["plateforme"],
-        )
-        LOGGER.info(
-            "[%s] url_initiale => %s",
-            configuration["scenario"],
-            configuration["url_initiale"],
-        )
-        LOGGER.info(
-            "[%s] proxy => %s", configuration["scenario"], configuration["proxy"]
-        )
-        LOGGER.info(
-            "[%s] simu_path => %s",
-            configuration["scenario"],
-            configuration["simu_path"],
-        )
-        LOGGER.info(
-            "[%s] simu_scenarios => %s",
-            configuration["scenario"],
-            configuration["simu_scenarios"],
-        )
-        LOGGER.info(
-            "[%s] simu_output => %s",
-            configuration["scenario"],
-            configuration["simu_output"],
-        )
-        LOGGER.info(
-            "[%s] headless => %s", configuration["scenario"], configuration["headless"]
-        )
-        LOGGER.info(
-            "[%s] lecture => %s", configuration["scenario"], configuration["lecture"]
-        )
-        LOGGER.info(
-            "[%s] inscription => %s",
-            configuration["scenario"],
-            configuration["inscription"],
-        )
-
-        LOGGER.info(
-            "[%s] screenshot_dir => %s",
-            configuration["scenario"],
-            configuration["screenshot_dir"],
-        )
-        LOGGER.info(
-            "[%s] report_dir => %s",
-            configuration["scenario"],
-            configuration["report_dir"],
-        )
-
-        if "utilisateur" in configuration.keys():
-            LOGGER.debug(
-                "[%s] utilisateur => %s",
-                configuration["scenario"],
-                configuration["utilisateur"],
-            )
-        if "mot_de_passe" in configuration.keys():
-            LOGGER.debug(
-                "[%s] mot_de_passe => %s",
-                configuration["scenario"],
-                configuration["mot_de_passe"],
-            )
-
-        # TODO Controle des parametres
-        LOGGER.debug("[%s] => %s ----  FIN  ---- ", methode_name, configuration)
-        return configuration
-
-    def gestion_repertoires_sortie(self, configuration):
-        """
-        Crée les répertoires de screenshots et de rapports.
-
-        Args:
-            configuration (dict): Dictionnaire contenant les chemins de sortie,
-                                le nom du scénario, etc.
-
-        Returns:
-            None
-        """
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-
-        # Récupération de self.date (date et heur du lancement)
-        # au format isoformat et conversion en objet datetime
-        # pour pouvoir le manipuler extraire l'heure et la date
-        date_heure = datetime.strptime(self.date[0], "%Y-%m-%dT%H:%M:%S.%f")
-        date = date_heure.date()
-        heure = date_heure.strftime("%H:%M:%S")
-
-        # Configuration des répertoires screenshot et rapports avec les données API
-        if self.donnees_scenario_api:
-            nom_app = self.donnees_scenario_api.get("application").get("nom", False)
-            nom_scenario = self.donnees_scenario_api.get("nom", False)
-            LOGGER.info(
-                "[%s] Chemin des répertoires construits avec les données API",
-                methode_name,
-            )
-            configuration["screenshot_dir"] = (
-                f"{configuration['simu_output']}/screenshots/{nom_app}/{nom_scenario}/{date}/{heure}"
-            )
-            configuration["report_dir"] = (
-                f"{configuration['simu_output']}/rapports/{nom_app}/{nom_scenario}/{date}/{heure}"
-            )
-        else:
-            # Configuration des répertoires screenshot et rapports avec les données de configuration
-            LOGGER.info(
-                "[%s] Chemin des répertoires construits avec la configuration",
-                methode_name,
-            )
-            configuration["screenshot_dir"] = (
-                f"{configuration['simu_output']}/screenshots/NO_API/{configuration['scenario']}/{date}/{heure}"
-            )
-            configuration["report_dir"] = (
-                f"{configuration['simu_output']}/rapports/NO_API/{configuration['scenario']}/{date}/{heure}"
-            )
-
-        # Création des réperoires screenshot et rapports
-        try:
-            LOGGER.info("[%s] Création des répertoires", methode_name)
-            Path(configuration["screenshot_dir"]).mkdir(parents=True, exist_ok=True)
-            Path(configuration["report_dir"]).mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            LOGGER.warning(
-                "[%s]⚠️ Impossible de créer les répertoires de screenshot et rapports\n%s",
-                methode_name,
-                e,
-            )
-            LOGGER.warning(
-                "[%s]⚠️ Les screenshots et rapports ne seront pas générés", methode_name
-            )
-            configuration["screenshot_dir"] = None
-            configuration["report_dir"] = None
-
-        LOGGER.debug(
-            "[%s] screenshot_dir => %s", methode_name, configuration["screenshot_dir"]
-        )
-        LOGGER.debug("[%s] report_dir => %s", methode_name, configuration["report_dir"])
-        LOGGER.debug("[%s] ----  FIN  ----", methode_name)
-
-    def _get_params(self) -> dict:
-        """TODO: Pas encore implémentée."""
-        return {}
-
-    def _get_utilisateur_isac(self, configuration) -> dict:
-        """Décodage deu fichier utilisateur."""
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-
-        utilisateur = recuperer_utlisateur_isac(configuration)
-
-        LOGGER.debug("[%s] environnement => %s", methode_name, utilisateur)
-        LOGGER.debug("[%s] ----  FIN  ----", methode_name)
-        return utilisateur
-
-    def _get_environnement(self) -> dict:
-        """Lecture des paramètres d'environnement."""
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-
-        environnement = {}
-
-        # la variable d'environnement SCENARIO est obligatoire
-        environnement["scenario"] = os.environ.get("SCENARIO")
-        if not environnement["scenario"]:
-            LOGGER.fatal("[%s]❌ Variable d'environnement SCENARIO non definie.")
-            pytest.exit(2)
-
-        LOGGER.info("Scenario [%s] ---- DEBUT ----", environnement["scenario"])
-
-        # Vérification du navigateur => TODO A mettre dans une methode dédiée
-        if "BROWSER" in os.environ:
-            environnement["navigateur"] = os.getenv("BROWSER")
-            LOGGER.info(
-                "[%s] Navigateur fixé par l'environnement : %s",
-                environnement["scenario"],
-                environnement["navigateur"],
-            )
-
-        environnement["simu_path"] = os.environ.get("SIMU_PATH", "/opt/simulateur_v6")
-        environnement["simu_scenarios"] = os.getenv(
-            "SIMU_SCENARIOS", "/opt/scenarios_v6"
-        )
-        environnement["path_utilisateurs_isac"] = os.environ.get(
-            "PATH_UTILISATEURS_ISAC", "/opt/simulateur_v6"
-        )
-        environnement["simu_output"] = os.environ.get(
-            "SIMU_OUTPUT", "/var/simulateur_v6"
-        )
-
-        # TODO Gestion optionnelle de la lecture et de l'inscription avec l'API
-        environnement["url_base_api_injecteur"] = os.environ.get(
-            "URL_BASE_API_INJECTEUR", "http://localhost/"
-        )
-        environnement["plateforme"] = os.environ.get("PLATEFORME", "prod")
-        environnement["proxy"] = os.getenv("PROXY")
-
-        # Gestion du paramètre de lecture
-        lecture_env = os.getenv("LECTURE", "true").lower()
-        # environnement['lecture'] sera True pour toute valeur de LECTURE autre que 'false'
-        environnement["lecture"] = lecture_env != "false"
-
-        # Explication des paramètres
-        # Si 'lecture' est False, alors 'inscription' est False
-        # Si 'lecture' est True (par défaut), alors 'inscription' peut être
-        # désactivée en la mettant à False (par défaut, c'est True aussi)
-        inscription_env = os.getenv("INSCRIPTION", "true").lower()
-        environnement["inscription"] = (
-            environnement["lecture"] and inscription_env != "false"
-        )
-
-        # Pareil pour le headless, il est descativé seulement avec HEADLESS = False
-        headless_env = os.getenv("HEADLESS", "true").lower()
-        environnement["headless"] = headless_env != "false"
-
-        # Emplacement des binaires des navigateurs playwright
-        environnement["playwright_browsers_path"] = os.getenv(
-            "PLAYWRIGHT_BROWSERS_PATH", environnement["simu_path"] + "/browsers"
-        )
-
-        # Nom de la VM à démarrer sur Guacamole (SCENARIO_EXADATA)
-        environnement["nom_vm_windows"] = os.getenv(
-            "NOM_VM_WINDOWS", ''
-        )
-
-        LOGGER.debug("[%s] environnement => %s", methode_name, environnement)
-        LOGGER.debug("[%s] ----  FIN  ----", methode_name)
-        return environnement
-
-    def _get_url_initiale(self, configuration, environnement) -> str:
-        """retourne l'url initiale en écrasant le dictionnaire url_initiale
-        (simplification du code pour le scénario).
-        """
-        # url initiale (obligatoire) = celle de la plateforme
-        if "url_initiale" not in configuration.keys():
-            LOGGER.critical(
-                re.sub(
-                    r"^\s+",
-                    "",
-                    f"""Aucune url_initiale définie dans le configuration du scénario ou des etapes communes
-                |url_initiale :
-                |    {environnement['plateforme']}: "https://www.exemple.net"
-                """,
-                    flags=re.MULTILINE,
-                )
-            )
-            pytest.exit(2)
-        if environnement["plateforme"] not in configuration["url_initiale"].keys():
-            LOGGER.critical(
-                re.sub(
-                    r"^\s+",
-                    "",
-                    f"""Aucune url_initiale pour l'envionnement [{environnement['plateforme']}] n'est définie dans le configuration du scénario ou des etapes communes
-                |url_initiale :
-                |    {environnement['plateforme']}: "https://www.exemple.net"
-                """,
-                    flags=re.MULTILINE,
-                )
-            )
-            pytest.exit(2)
-        url_initiale = configuration["url_initiale"][environnement["plateforme"]]
-        del configuration["url_initiale"]
-        return url_initiale
-
-    def _get_proxy(self, configuration, environnement) -> str:
-        """Retourne la configuration du proxy."""
-        # Valeur par défaut ('')
-        proxy = ""
-
-        # Le proxy via l'environnement est prioritaire sur la configuration
-        if environnement["proxy"] is not None:
-            proxy = environnement["proxy"]
-            del environnement["proxy"]
-        else:
-            # Configuration du scénario (si elle existe)
-            if "proxy" in configuration.keys():
-                if environnement["plateforme"] not in configuration["proxy"].keys():
-                    proxy = ""
-                    LOGGER.warning(
-                        "[%s] proxy est défini mais par pour la plateforme, => proxy direct"
-                    )
-                else:
-                    proxy = configuration["proxy"][environnement["plateforme"]]
-                del configuration["proxy"]
-
-        return proxy
-
-    def _get_navigateur(self, configuration, environnement) -> str:
-        """Retourne le navigateur utilisé pour le test."""
-        methode_name = contexte_actuel(self)
-        # si le navigateur est defini dans l'environnement on prend
-        if "navigateur" in environnement.keys():
-            navigateur = environnement["navigateur"]
-            del environnement["navigateur"]
-        else:
-            # Sinon dans la conf du scenario sinon firefox
-            navigateur = configuration.get("navigateur", "firefox")
-        LOGGER.debug("[%s]  -> %s ", methode_name, navigateur)
-        return navigateur
-
-    def ajoute_etape(self, etape: dict) -> None:
-        """Ajout d'une étape self.etape (pour construire le rapport final)."""
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-        self.etapes.append(etape)
-        LOGGER.debug("[%s] ----  FIN  ----", methode_name)
-
-    def finalise(self):
-        """Finalise le scénario, calcule la durée totale et agrège les statuts."""
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-
-        # TODO : Mettre ce code dans une methode dédiée
-        self.duree = sum([float(etape["duree"]) for etape in self.etapes])
-
-        # Cumul seulement si il y a des étapes
-        if len(self.etapes) > 0:
-            self.status = self.etapes[-1]["status"]
-            LOGGER.debug("[%s] self.status => %s ", methode_name, self.etapes[-1]["status"])
-            self.status_initial = self.etapes[-1]["status"]
-            LOGGER.debug("[%s] self.status_initial => %s ", methode_name, self.etapes[-1]["status"])
-            self.commentaire = self.etapes[-1]["commentaire"]
-            self.commentaire_initial = self.etapes[-1]["commentaire"]
-        LOGGER.debug("[%s] ----  FIN  ----", methode_name)
-
-    def save_to_json(self, filepath: str) -> dict:
-        """Enregistre le scénario sous forme de fichier JSON."""
-        methode_name = contexte_actuel(self)
-        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
-        data = {
-            "identifiant": self.config.get("identifiant", ""),
-            "scenario": self.config.get("scenario", ""),
-            "date": self.date[0],
-            "duree": self.duree,
-            "status": self.status,
-            "nb_scene": len(self.etapes),
-            "commentaire": self.commentaire,
-            "injecteur": self.injecteur,
-            "navigateur": self.navigateur,
-            "interface_ip": self.interface_ip,
-            "status_inital": self.status_initial,
-            "commentaire_initial": self.commentaire_initial,
-            "briques": self.etapes,
-        }
-        with open(filepath, "w", encoding="utf-8") as file:
-            json.dump(data, file, ensure_ascii=False, indent=4)
-
-        LOGGER.debug("[%s] ----  FIN  ----", methode_name)
-        return data
-
-
-@pytest.fixture(scope="session")
-def execution():
-    """Crée un scénario unique pour tous les tests et le finalise à la fin."""
-    fixture_name = contexte_actuel()
-    LOGGER.debug("[Fixture SETUP %s] ----  DEBUT  ----", fixture_name)
-
-    execution_scenario = Execution()
-    LOGGER.debug("[Fixture SETUP %s] ----   FIN   ----", fixture_name)
-
-    if execution_scenario.config.get('lecture'):
-        try:
-            verifier_planning_execution(execution_scenario.donnees_scenario_api)
-            LOGGER.info("[%s] ✅ Planning d'exécution validé - Poursuite du traitement", fixture_name)
-        except SystemExit:
-            # La fonction verifier_planning_execution a appelé pytest.exit(2)
-            # On laisse l'exception remonter pour arrêter immédiatement
-            LOGGER.info("[%s] 🛑 Arrêt immédiat suite à violation du planning", fixture_name)
-            raise
-        except Exception as e:
-            # Erreur inattendue lors de la vérification du planning
-            LOGGER.critical("[%s] ❌ Erreur critique lors de la vérification du planning: %s", 
-                        fixture_name, e)
-            print(f"❌ Erreur critique lors de la vérification du planning: {e}")
-            pytest.exit(2)
-
-    # Retourne l'instance du scénario pour tous les tests
-    yield execution_scenario
-
-    LOGGER.debug("[Fixture FINAL %s] ----  DEBUT  ----", fixture_name)
-
-    # TODO : Ajouter la relance automatique
-
-    # # Si relance est True alors on relance le scénario
-    # if relance(
-    #     url_base_api_injecteur=execution_scenario.config.get("url_base_api_injecteur"),
-    #     identifiant=execution_scenario.config.get("identifiant"),
-    # ) and os.environ["RELANCE"] == 'true':
-    #     LOGGER.debug("[%s] ---- RELANCE AUTO ----", fixture_name)
-    #     # TODO : Supprimer les screenshots du rejeu KO
-        
-    #     # Mise à jour de la variable d'environnement de relance
-    #     os.environ["RELANCE"] = 'false'
-
-    #     # Préparer les arguments pour le nouveau processus
-    #     original_args = sys.argv.copy()
-
-    #     env = os.environ.copy()
-
-    #     processes = [
-    #         'playwright'
-    #     ]
-
-    #     for process_name in processes:
-    #         subprocess.run(
-    #             ['pkill', '-f', process_name],
-    #             capture_output=True,
-    #             check=False
-    #         )
-
-    #     subprocess.run(
-    #         original_args,
-    #         env=env,
-    #         capture_output=False,
-    #         check=False
-    #     )
-
-    # # Sinon on finalise la création du rapport json
-    # else:
-    # Finalise le scénario après tous les tests
-    execution_scenario.finalise()
+    %% Erreur variable manquante
+    CheckScenarioVar -->|❌ NON| ErrorScenario[❌ ERREUR CRITIQUE<br/>Variable SCENARIO manquante]
+    ErrorScenario --> ExitCritical1[🛑 pytest.exit(2)<br/>ARRÊT IMMÉDIAT]
     
-    # generation json (et ecriture sur dans les rapports)
-    nom_rapport_json = f"{execution_scenario.config.get('report_dir')}/scenario.json"
-    json_execution = execution_scenario.save_to_json(nom_rapport_json)
-
-    # et inscription
-    if execution_scenario.config.get("inscription"):
-        inscrire_resultats_api(
-            execution_scenario.config.get("url_base_api_injecteur"),
-            json_execution,
-        )
-    else:
-        # ou dump du json
-        LOGGER.warning(
-            "[Fixture FINAL %s]⚠️ Scénario non inscrit en base (inscription = %s)",
-            fixture_name,
-            execution_scenario.config.get("inscription"),
-        )
-        LOGGER.info(
-            "[Fixture FINAL %s] json scénario => \n  %s",
-            fixture_name,
-            json.dumps(json_execution, ensure_ascii=False, indent=4),
-        )
-    LOGGER.debug("[Fixture FINAL %s] ----   FIN   ----", fixture_name)
-
+    %% Initialisation normale
+    CheckScenarioVar -->|✅ OUI| InitExecution[📋 Initialisation Execution<br/>__init__()]
+    
+    InitExecution --> LoadEnvVars[🌍 Chargement variables<br/>environnement]
+    
+    LoadEnvVars --> LoadConfigFile{Fichier config<br/>scenario trouvé ?}
+    
+    %% Erreur fichier config
+    LoadConfigFile -->|❌ NON| ErrorConfigFile[❌ ERREUR CRITIQUE<br/>Fichier config introuvable]
+    ErrorConfigFile --> ExitCritical2[🛑 pytest.exit(2)<br/>ARRÊT IMMÉDIAT]
+    
+    %% Configuration OK
+    LoadConfigFile -->|✅ OUI| LoadCommonConfig{Config commune<br/>requise ?}
+    
+    LoadCommonConfig -->|✅ OUI| CheckCommonFile{Fichier commun<br/>trouvé ?}
+    LoadCommonConfig -->|❌ NON| ConfigLoaded[⚙️ Configuration chargée]
+    
+    %% Erreur config commune
+    CheckCommonFile -->|❌ NON| ErrorCommonFile[❌ ERREUR CRITIQUE<br/>Config commune introuvable]
+    ErrorCommonFile --> ExitCritical3[🛑 pytest.exit(2)<br/>ARRÊT IMMÉDIAT]
+    
+    CheckCommonFile -->|✅ OUI| ConfigLoaded
+    
+    ConfigLoaded --> CheckLectureMode{Mode LECTURE<br/>activé ?}
+    
+    %% ========== BRANCHE LECTURE = FALSE ==========
+    CheckLectureMode -->|❌ NON - LECTURE=false| NoAPIMode[📝 MODE LEGACY<br/>Pas d'appel API<br/>donnees_scenario_api = {}]
+    
+    NoAPIMode --> FinalizeConfigNoAPI[🔧 Finalisation configuration<br/>sans données API]
+    
+    FinalizeConfigNoAPI --> CreateDirectories1[📁 Création répertoires<br/>screenshots/rapports]
+    
+    CreateDirectories1 --> DirectorySuccess1{Répertoires<br/>créés ?}
+    
+    DirectorySuccess1 -->|❌ NON| WarnDirectories1[⚠️ WARNING<br/>Pas de screenshots/rapports]
+    DirectorySuccess1 -->|✅ OUI| ReadyLegacy[✅ PRÊT EXÉCUTION LEGACY]
+    WarnDirectories1 --> ReadyLegacy
+    
+    ReadyLegacy --> LaunchBrowserLegacy[🌐 Lancement navigateur<br/>Playwright]
+    
+    %% ========== BRANCHE LECTURE = TRUE ==========
+    CheckLectureMode -->|✅ OUI - LECTURE=true| CallAPI[🌐 APPEL API<br/>lecture_api_scenario()]
+    
+    CallAPI --> APIResult{Résultat API}
+    
+    %% ========== CAS ERREUR API ==========
+    APIResult -->|❌ ERREUR HTTP| HandleHTTPError[🚨 Erreur HTTP détectée<br/>Status Code: 4xx/5xx]
+    APIResult -->|❌ TIMEOUT| HandleTimeoutError[⏰ Timeout API<br/>Pas de réponse]
+    APIResult -->|❌ CONNEXION| HandleConnectionError[🔌 Erreur connexion<br/>Serveur inaccessible]
+    APIResult -->|❌ JSON INVALIDE| HandleJSONError[📄 Réponse API invalide<br/>JSON malformé]
+    APIResult -->|❌ AUTRE ERREUR| HandleOtherError[❓ Erreur inconnue API]
+    
+    HandleHTTPError --> SetInfrastructureError1[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Erreur HTTP API]
+    HandleTimeoutError --> SetInfrastructureError2[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Timeout API]
+    HandleConnectionError --> SetInfrastructureError3[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Connexion API]
+    HandleJSONError --> SetInfrastructureError4[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Réponse API]
+    HandleOtherError --> SetInfrastructureError5[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Erreur API]
+    
+    SetInfrastructureError1 --> CreateErrorReport1[📄 Génération rapport JSON<br/>erreur infrastructure]
+    SetInfrastructureError2 --> CreateErrorReport2[📄 Génération rapport JSON<br/>erreur infrastructure]
+    SetInfrastructureError3 --> CreateErrorReport3[📄 Génération rapport JSON<br/>erreur infrastructure]
+    SetInfrastructureError4 --> CreateErrorReport4[📄 Génération rapport JSON<br/>erreur infrastructure]
+    SetInfrastructureError5 --> CreateErrorReport5[📄 Génération rapport JSON<br/>erreur infrastructure]
+    
+    CreateErrorReport1 --> ExitInfrastructure1[🛑 pytest.exit(3)<br/>ARRÊT INFRASTRUCTURE]
+    CreateErrorReport2 --> ExitInfrastructure2[🛑 pytest.exit(3)<br/>ARRÊT INFRASTRUCTURE]
+    CreateErrorReport3 --> ExitInfrastructure3[🛑 pytest.exit(3)<br/>ARRÊT INFRASTRUCTURE]
+    CreateErrorReport4 --> ExitInfrastructure4[🛑 pytest.exit(3)<br/>ARRÊT INFRASTRUCTURE]
+    CreateErrorReport5 --> ExitInfrastructure5[🛑 pytest.exit(3)<br/>ARRÊT INFRASTRUCTURE]
+    
+    %% ========== CAS SUCCÈS API ==========
+    APIResult -->|✅ SUCCÈS 200| StoreAPIData[📦 Stockage données API<br/>donnees_scenario_api]
+    
+    StoreAPIData --> FinalizeConfigAPI[🔧 Finalisation configuration<br/>avec données API]
+    
+    FinalizeConfigAPI --> CreateDirectories2[📁 Création répertoires<br/>avec noms API]
+    
+    CreateDirectories2 --> DirectorySuccess2{Répertoires<br/>créés ?}
+    
+    DirectorySuccess2 -->|❌ NON| WarnDirectories2[⚠️ WARNING<br/>Pas de screenshots/rapports]
+    DirectorySuccess2 -->|✅ OUI| CheckPlanningData{Données planning<br/>présentes ?}
+    WarnDirectories2 --> CheckPlanningData
+    
+    %% ========== VÉRIFICATION PLANNING ==========
+    CheckPlanningData -->|❌ NON| NoPlanningData[⚠️ Pas de données planning<br/>Exécution autorisée par défaut]
+    CheckPlanningData -->|✅ OUI| VerifyPlanning[📅 Vérification planning<br/>verifier_planning_execution()]
+    
+    NoPlanningData --> ReadyWithAPI[✅ PRÊT EXÉCUTION API<br/>Sans vérification planning]
+    
+    VerifyPlanning --> PlanningResult{Résultat planning}
+    
+    %% ========== CAS PLANNING VIOLÉ ==========
+    PlanningResult -->|❌ JOUR FÉRIÉ| PlanningHoliday[🎄 Jour férié interdit<br/>flag_ferie ≠ true]
+    PlanningResult -->|❌ HORS PLAGE| PlanningOutOfRange[⏰ Heure hors plage<br/>Créneaux non respectés]
+    PlanningResult -->|❌ JOUR NON PROGRAMMÉ| PlanningNoDay[📅 Jour non programmé<br/>Aucune plage définie]
+    PlanningResult -->|❌ ERREUR PLANNING| PlanningError[❓ Erreur vérification<br/>Données planning invalides]
+    
+    PlanningHoliday --> SetPlanningError1[📊 Status = 2 FAILED<br/>Type: Planning<br/>Commentaire: Jour férié]
+    PlanningOutOfRange --> SetPlanningError2[📊 Status = 2 FAILED<br/>Type: Planning<br/>Commentaire: Hors plage]
+    PlanningNoDay --> SetPlanningError3[📊 Status = 2 FAILED<br/>Type: Planning<br/>Commentaire: Jour non programmé]
+    PlanningError --> SetPlanningError4[📊 Status = 2 FAILED<br/>Type: Planning<br/>Commentaire: Erreur planning]
+    
+    SetPlanningError1 --> CreatePlanningReport1[📄 Génération rapport JSON<br/>violation planning]
+    SetPlanningError2 --> CreatePlanningReport2[📄 Génération rapport JSON<br/>violation planning]
+    SetPlanningError3 --> CreatePlanningReport3[📄 Génération rapport JSON<br/>violation planning]
+    SetPlanningError4 --> CreatePlanningReport4[📄 Génération rapport JSON<br/>violation planning]
+    
+    CreatePlanningReport1 --> ExitPlanning1[🛑 pytest.exit(2)<br/>ARRÊT PLANNING]
+    CreatePlanningReport2 --> ExitPlanning2[🛑 pytest.exit(2)<br/>ARRÊT PLANNING]
+    CreatePlanningReport3 --> ExitPlanning3[🛑 pytest.exit(2)<br/>ARRÊT PLANNING]
+    CreatePlanningReport4 --> ExitPlanning4[🛑 pytest.exit(2)<br/>ARRÊT PLANNING]
+    
+    %% ========== CAS PLANNING OK ==========
+    PlanningResult -->|✅ AUTORISÉ| PlanningAuthorized[✅ Planning respecté<br/>Exécution autorisée]
+    
+    PlanningAuthorized --> ReadyWithAPI
+    ReadyWithAPI --> LaunchBrowserAPI[🌐 Lancement navigateur<br/>Playwright avec données API]
+    
+    %% ========== EXÉCUTION DES TESTS ==========
+    LaunchBrowserLegacy --> BrowserResult1{Lancement<br/>navigateur ?}
+    LaunchBrowserAPI --> BrowserResult2{Lancement<br/>navigateur ?}
+    
+    %% Erreur lancement navigateur
+    BrowserResult1 -->|❌ ERREUR| BrowserError1[🌐 Erreur Playwright<br/>Navigateur non disponible]
+    BrowserResult2 -->|❌ ERREUR| BrowserError2[🌐 Erreur Playwright<br/>Navigateur non disponible]
+    
+    BrowserError1 --> SetBrowserError1[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Erreur navigateur]
+    BrowserError2 --> SetBrowserError2[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Erreur navigateur]
+    
+    SetBrowserError1 --> CreateBrowserReport1[📄 Génération rapport JSON<br/>erreur navigateur]
+    SetBrowserError2 --> CreateBrowserReport2[📄 Génération rapport JSON<br/>erreur navigateur]
+    
+    CreateBrowserReport1 --> ExitBrowser1[🛑 pytest.exit(2)<br/>ARRÊT NAVIGATEUR]
+    CreateBrowserReport2 --> ExitBrowser2[🛑 pytest.exit(2)<br/>ARRÊT NAVIGATEUR]
+    
+    %% Navigateur OK
+    BrowserResult1 -->|✅ OK| RunTests1[🎬 Exécution des tests<br/>Mode Legacy]
+    BrowserResult2 -->|✅ OK| RunTests2[🎬 Exécution des tests<br/>Mode API]
+    
+    RunTests1 --> TestExecution1{Résultat<br/>tests ?}
+    RunTests2 --> TestExecution2{Résultat<br/>tests ?}
+    
+    %% ========== RÉSULTATS TESTS ==========
+    
+    %% Tests réussis
+    TestExecution1 -->|✅ SUCCÈS| TestSuccess1[🎯 Tous tests réussis<br/>Toutes étapes OK]
+    TestExecution2 -->|✅ SUCCÈS| TestSuccess2[🎯 Tous tests réussis<br/>Toutes étapes OK]
+    
+    TestSuccess1 --> SetSuccess1[📊 Status = 0 SUCCESS<br/>Type: Fonctionnel<br/>Commentaire: Succès]
+    TestSuccess2 --> SetSuccess2[📊 Status = 0 SUCCESS<br/>Type: Fonctionnel<br/>Commentaire: Succès]
+    
+    %% Tests échoués
+    TestExecution1 -->|❌ ÉCHEC| TestFailed1[💥 Tests échoués<br/>Erreur fonctionnelle]
+    TestExecution2 -->|❌ ÉCHEC| TestFailed2[💥 Tests échoués<br/>Erreur fonctionnelle]
+    
+    TestFailed1 --> SetFailed1[📊 Status = 2 FAILED<br/>Type: Fonctionnel<br/>Commentaire: Échec test]
+    TestFailed2 --> SetFailed2[📊 Status = 2 FAILED<br/>Type: Fonctionnel<br/>Commentaire: Échec test]
+    
+    %% Erreur technique tests
+    TestExecution1 -->|🚨 ERREUR| TestError1[🚨 Erreur technique<br/>Problème infrastructure]
+    TestExecution2 -->|🚨 ERREUR| TestError2[🚨 Erreur technique<br/>Problème infrastructure]
+    
+    TestError1 --> SetTestError1[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Erreur technique]
+    TestError2 --> SetTestError2[📊 Status = 3 UNKNOWN<br/>Type: Infrastructure<br/>Commentaire: Erreur technique]
+    
+    %% ========== FINALISATION ==========
+    SetSuccess1 --> Finalize1[📊 Calcul durée<br/>Agrégation résultats]
+    SetSuccess2 --> Finalize2[📊 Calcul durée<br/>Agrégation résultats]
+    SetFailed1 --> Finalize3[📊 Calcul durée<br/>Agrégation résultats]
+    SetFailed2 --> Finalize4[📊 Calcul durée<br/>Agrégation résultats]
+    SetTestError1 --> Finalize5[📊 Calcul durée<br/>Agrégation résultats]
+    SetTestError2 --> Finalize6[📊 Calcul durée<br/>Agrégation résultats]
+    
+    Finalize1 --> SaveJSON1[💾 Sauvegarde rapport JSON<br/>Status: SUCCESS]
+    Finalize2 --> SaveJSON2[💾 Sauvegarde rapport JSON<br/>Status: SUCCESS]
+    Finalize3 --> SaveJSON3[💾 Sauvegarde rapport JSON<br/>Status: FAILED]
+    Finalize4 --> SaveJSON4[💾 Sauvegarde rapport JSON<br/>Status: FAILED]
+    Finalize5 --> SaveJSON5[💾 Sauvegarde rapport JSON<br/>Status: UNKNOWN]
+    Finalize6 --> SaveJSON6[💾 Sauvegarde rapport JSON<br/>Status: UNKNOWN]
+    
+    %% ========== INSCRIPTION API ==========
+    SaveJSON1 --> CheckInscription1{INSCRIPTION<br/>activée ?}
+    SaveJSON2 --> CheckInscription2{INSCRIPTION<br/>activée ?}
+    SaveJSON3 --> CheckInscription3{INSCRIPTION<br/>activée ?}
+    SaveJSON4 --> CheckInscription4{INSCRIPTION<br/>activée ?}
+    SaveJSON5 --> CheckInscription5{INSCRIPTION<br/>activée ?}
+    SaveJSON6 --> CheckInscription6{INSCRIPTION<br/>activée ?}
+    
+    %% Inscription OUI
+    CheckInscription1 -->|✅ OUI| SendAPI1[📤 Inscription résultats<br/>inscrire_resultats_api]
+    CheckInscription2 -->|✅ OUI| SendAPI2[📤 Inscription résultats<br/>inscrire_resultats_api]
+    CheckInscription3 -->|✅ OUI| SendAPI3[📤 Inscription résultats<br/>inscrire_resultats_api]
+    CheckInscription4 -->|✅ OUI| SendAPI4[📤 Inscription résultats<br/>inscrire_resultats_api]
+    CheckInscription5 -->|✅ OUI| SendAPI5[📤 Inscription résultats<br/>inscrire_resultats_api]
+    CheckInscription6 -->|✅ OUI| SendAPI6[📤 Inscription résultats<br/>inscrire_resultats_api]
+    
+    %% Inscription NON
+    CheckInscription1 -->|❌ NON| LocalOnly1[📝 Log local uniquement<br/>Pas d'inscription]
+    CheckInscription2 -->|❌ NON| LocalOnly2[📝 Log local uniquement<br/>Pas d'inscription]
+    CheckInscription3 -->|❌ NON| LocalOnly3[📝 Log local uniquement<br/>Pas d'inscription]
+    CheckInscription4 -->|❌ NON| LocalOnly4[📝 Log local uniquement<br/>Pas d'inscription]
+    CheckInscription5 -->|❌ NON| LocalOnly5[📝 Log local uniquement<br/>Pas d'inscription]
+    CheckInscription6 -->|❌ NON| LocalOnly6[📝 Log local uniquement<br/>Pas d'inscription]
+    
+    %% ========== FINS D'EXÉCUTION ==========
+    SendAPI1 --> EndSuccess1[🏁 FIN SUCCÈS<br/>Exit Code: 0]
+    SendAPI2 --> EndSuccess2[🏁 FIN SUCCÈS<br/>Exit Code: 0]
+    LocalOnly1 --> EndSuccess1
+    LocalOnly2 --> EndSuccess2
+    
+    SendAPI3 --> EndFailed1[🏁 FIN ÉCHEC<br/>Exit Code: 2]
+    SendAPI4 --> EndFailed2[🏁 FIN ÉCHEC<br/>Exit Code: 2]
+    LocalOnly3 --> EndFailed1
+    LocalOnly4 --> EndFailed2
+    
+    SendAPI5 --> EndUnknown1[🏁 FIN ERREUR<br/>Exit Code: 3]
+    SendAPI6 --> EndUnknown2[🏁 FIN ERREUR<br/>Exit Code: 3]
+    LocalOnly5 --> EndUnknown1
+    LocalOnly6 --> EndUnknown2
+    
+    %% ========== RÉSUMÉ DES CODES DE SORTIE ==========
+    %% Exit Code 0: Succès complet
+    %% Exit Code 2: Échec fonctionnel (tests, planning) OU erreur navigateur
+    %% Exit Code 3: Erreur infrastructure (API, technique)
+    
+    %% ========== STYLING ==========
+    classDef successClass fill:#d4edda,stroke:#28a745,stroke-width:3px,color:#155724
+    classDef errorClass fill:#f8d7da,stroke:#dc3545,stroke-width:3px,color:#721c24
+    classDef warningClass fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404
+    classDef processClass fill:#e2e3e5,stroke:#6c757d,stroke-width:2px,color:#495057
+    classDef decisionClass fill:#cce5ff,stroke:#007bff,stroke-width:2px,color:#004085
+    classDef criticalClass fill:#721c24,stroke:#ffffff,stroke-width:4px,color:#ffffff
+    classDef infrastructureClass fill:#6f42c1,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    
+    %% Succès
+    class TestSuccess1,TestSuccess2,SetSuccess1,SetSuccess2,EndSuccess1,EndSuccess2 successClass
+    
+    %% Erreurs critiques (Exit immédiat)
+    class ExitCritical1,ExitCritical2,ExitCritical3,ExitInfrastructure1,ExitInfrastructure2,ExitInfrastructure3,ExitInfrastructure4,ExitInfrastructure5 criticalClass
+    class ExitPlanning1,ExitPlanning2,ExitPlanning3,ExitPlanning4,ExitBrowser1,ExitBrowser2 criticalClass
+    
+    %% Erreurs infrastructure
+    class SetInfrastructureError1,SetInfrastructureError2,SetInfrastructureError3,SetInfrastructureError4,SetInfrastructureError5 infrastructureClass
+    class SetBrowserError1,SetBrowserError2,SetTestError1,SetTestError2,EndUnknown1,EndUnknown2 infrastructureClass
+    
+    %% Erreurs fonctionnelles
+    class TestFailed1,TestFailed2,SetFailed1,SetFailed2,EndFailed1,EndFailed2 errorClass
+    class SetPlanningError1,SetPlanningError2,SetPlanningError3,SetPlanningError4 errorClass
+    
+    %% Warnings
+    class WarnDirectories1,WarnDirectories2,NoPlanningData,LocalOnly1,LocalOnly2,LocalOnly3,LocalOnly4,LocalOnly5,LocalOnly6 warningClass
+    
+    %% Processus
+    class Start,InitExecution,LoadEnvVars,ConfigLoaded,StoreAPIData,FinalizeConfigAPI,FinalizeConfigNoAPI processClass
+    class Finalize1,Finalize2,Finalize3,Finalize4,Finalize5,Finalize6 processClass
+    
+    %% Décisions
+    class CheckScenarioVar,LoadConfigFile,LoadCommonConfig,CheckCommonFile,CheckLectureMode,APIResult,PlanningResult decisionClass
+    class DirectorySuccess1,DirectorySuccess2,CheckPlanningData,BrowserResult1,BrowserResult2,TestExecution1,TestExecution2 decisionClass
+    class CheckInscription1,CheckInscription2,CheckInscription3,CheckInscription4,CheckInscription5,CheckInscription6 decisionClass
