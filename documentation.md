@@ -8,6 +8,7 @@ L'algorithme de vérification du planning d'exécution détermine si un scénari
 
 Le diagramme ci-dessous illustre le flux complet de décision pour la vérification du planning d'exécution :
 
+```mermaid
 flowchart TD
     Start([🚀 DÉBUT SCÉNARIO]) --> CheckLecture{LECTURE=false ?}
     
@@ -64,6 +65,7 @@ flowchart TD
     class SaveJSON,Legacy warningClass
     class Start,CallAPI,ExtractSchedule1,ExtractSchedule2 processClass
     class CheckLecture,APISuccess,CheckHoliday,CheckHolidayFlag,CheckScheduleExists,CheckTimeInRange decisionClass
+```
 
 ## Légende des codes de sortie
 
