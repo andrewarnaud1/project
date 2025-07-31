@@ -1,0 +1,14 @@
+try:
+    verifier_planning_execution(self.donnees_scenario_api)
+    LOGGER.info("[%s] ✅ Planning d'exécution validé - Poursuite du traitement", methode_name)
+except SystemExit:
+    # La fonction verifier_planning_execution a appelé pytest.exit(2)
+    # On laisse l'exception remonter pour arrêter immédiatement
+    LOGGER.info("[%s] 🛑 Arrêt immédiat suite à violation du planning", methode_name)
+    raise
+except Exception as e:
+    # Erreur inattendue lors de la vérification du planning
+    LOGGER.critical("[%s] ❌ Erreur critique lors de la vérification du planning: %s", 
+                  methode_name, e)
+    print(f"❌ Erreur critique lors de la vérification du planning: {e}")
+    pytest.exit(2)
