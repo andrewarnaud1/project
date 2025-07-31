@@ -1,3 +1,4 @@
+```mermaid
 flowchart TD
     Start([🚀 DÉBUT EXÉCUTION<br/>pytest execution]) --> CheckScenarioVar{Variable SCENARIO<br/>définie ?}
     
@@ -265,3 +266,4 @@ flowchart TD
     class CheckScenarioVar,LoadConfigFile,LoadCommonConfig,CheckCommonFile,CheckLectureMode,APIResult,PlanningResult decisionClass
     class DirectorySuccess1,DirectorySuccess2,CheckPlanningData,BrowserResult1,BrowserResult2,TestExecution1,TestExecution2 decisionClass
     class CheckInscription1,CheckInscription2,CheckInscription3,CheckInscription4,CheckInscription5,CheckInscription6 decisionClass
+```
