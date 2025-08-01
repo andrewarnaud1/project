@@ -1,3 +1,4 @@
+```mermaid
 flowchart TD
 Start([🚀 DÉBUT EXÉCUTION SCÉNARIO]) –> LoadEnv[📋 Chargement Variables d’Environnement]
 
@@ -157,4 +158,6 @@ class StepWarning,SaveUnknownStatus,LogAPIError,LogNoInscription warningClass
 class Start,LoadEnv,LoadConfig,CreateDirs1,CreateDirs2,LoadUsers,LaunchBrowser,CreateContext,CreatePage,StartTracing,InitExecution,ExecuteSteps processClass
 class ValidateEnv,ValidateConfig,CheckLectureMode,APISuccess,IsHoliday,CheckHolidayFlag,InTimeSlot,ValidateUsers,BrowserSuccess,NextStep,StepResult,ErrorType,AppErrorFound,CheckInscription,APIInscriptionSuccess decisionClass
 class CallAPI,MergeConfig,HandleAPIError,SendToAPI apiClass
+```
+
 ```
