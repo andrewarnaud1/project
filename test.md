@@ -1,7 +1,7 @@
 ```mermaid
 
 flowchart TD
-Start([🚀 DÉBUT EXÉCUTION<br/>SCÉNARIO]) –> InitEnv[📋 Chargement variables<br/>environnement SCENARIO]
+Start([🚀 DÉBUT EXÉCUTION<br/>SCÉNARIO]) --> InitEnv[📋 Chargement variables<br/>environnement SCENARIO]
 
 
 %% Vérification variable SCENARIO obligatoire
