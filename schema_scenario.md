@@ -1,10 +1,10 @@
 ```mermaid
 
 flowchart TD
-Start([🚀 DÉBUT EXÉCUTION SCÉNARIO]) –> LoadEnv[📋 Chargement Variables d’Environnement]
+Start([🚀 DEBUT EXECUTION SCENARIO]) –> LoadEnv[📋 Chargement Variables d’Environnement]
 
 %% Validation variables environnement
-LoadEnv --> ValidateEnv{Variables obligatoires<br/>présentes ?}
+LoadEnv --> ValidateEnv{Variables obligatoires<br/>presentes ?}
 ValidateEnv -->|NON| ErrorEnv[❌ ERREUR<br/>Variables manquantes<br/>EXIT CODE 2]
 
 %% Chargement configuration fichier
@@ -12,40 +12,40 @@ ValidateEnv -->|OUI| LoadConfig[📄 Chargement Configuration<br/>Fichier YAML]
 LoadConfig --> ValidateConfig{Fichier configuration<br/>valide ?}
 ValidateConfig -->|NON| ErrorConfig[❌ ERREUR<br/>Configuration invalide<br/>EXIT CODE 2]
 
-%% Vérification mode lecture API
+%% Verification mode lecture API
 ValidateConfig -->|OUI| CheckLectureMode{LECTURE = true ?}
 
 %% Mode hors ligne (LECTURE=false)
 CheckLectureMode -->|NON| OfflineMode[📴 Mode Hors Ligne<br/>Configuration fichier uniquement]
-OfflineMode --> CreateDirs1[📁 Création Répertoires Sortie]
+OfflineMode --> CreateDirs1[📁 Creation Repertoires Sortie]
 
 %% Mode en ligne (LECTURE=true)
-CheckLectureMode -->|OUI| CallAPI[🌐 Appel API Scénario]
-CallAPI --> APISuccess{API accessible<br/>et données valides ?}
+CheckLectureMode -->|OUI| CallAPI[🌐 Appel API Scenario]
+CallAPI --> APISuccess{API accessible<br/>et donnees valides ?}
 
 %% Erreur API
 APISuccess -->|NON| HandleAPIError[⚠️ Gestion Erreur API]
 HandleAPIError --> SaveUnknownStatus[💾 Sauvegarde Status UNKNOWN<br/>Type: Infrastructure]
 SaveUnknownStatus --> ErrorAPI[❌ ARRÊT<br/>Erreur Infrastructure<br/>EXIT CODE 3]
 
-%% Succès API - Vérification planning
+%% Succès API - Verification planning
 APISuccess -->|OUI| MergeConfig[🔄 Fusion Configuration<br/>API + Fichier + Environnement]
-MergeConfig --> CheckScheduling{Vérification<br/>Planning d'Exécution}
+MergeConfig --> CheckScheduling{Verification<br/>Planning d'Execution}
 
-%% Vérification jours fériés
-CheckScheduling --> IsHoliday{Jour férié ?}
+%% Verification jours feries
+CheckScheduling --> IsHoliday{Jour ferie ?}
 IsHoliday -->|OUI| CheckHolidayFlag{flag_ferie = true ?}
-CheckHolidayFlag -->|NON| ErrorHoliday[❌ ARRÊT<br/>Exécution interdite<br/>les jours fériés<br/>EXIT CODE 2]
+CheckHolidayFlag -->|NON| ErrorHoliday[❌ ARRÊT<br/>Execution interdite<br/>les jours feries<br/>EXIT CODE 2]
 
-%% Vérification plages horaires
-IsHoliday -->|NON| CheckTimeSlots[⏰ Vérification Plages Horaires]
+%% Verification plages horaires
+IsHoliday -->|NON| CheckTimeSlots[⏰ Verification Plages Horaires]
 CheckHolidayFlag -->|OUI| CheckTimeSlots
 
-CheckTimeSlots --> InTimeSlot{Heure dans<br/>plage autorisée ?}
+CheckTimeSlots --> InTimeSlot{Heure dans<br/>plage autorisee ?}
 InTimeSlot -->|NON| ErrorTimeSlot[❌ ARRÊT<br/>Heure hors planning<br/>EXIT CODE 2]
 
-%% Création environnement d'exécution
-InTimeSlot -->|OUI| CreateDirs2[📁 Création Répertoires Sortie]
+%% Creation environnement d'execution
+InTimeSlot -->|OUI| CreateDirs2[📁 Creation Repertoires Sortie]
 CreateDirs1 --> LoadUsers
 CreateDirs2 --> LoadUsers[👤 Chargement Utilisateurs ISAC]
 
@@ -54,84 +54,84 @@ ValidateUsers -->|NON| ErrorUsers[❌ ERREUR<br/>Utilisateurs invalides<br/>EXIT
 
 %% Lancement navigateur
 ValidateUsers -->|OUI| LaunchBrowser[🌐 Lancement Navigateur Playwright]
-LaunchBrowser --> BrowserSuccess{Navigateur<br/>lancé avec succès ?}
+LaunchBrowser --> BrowserSuccess{Navigateur<br/>lance avec succès ?}
 
-BrowserSuccess -->|NON| ErrorBrowser[❌ ERREUR<br/>Échec lancement navigateur<br/>EXIT CODE 2]
+BrowserSuccess -->|NON| ErrorBrowser[❌ ERREUR<br/>Echec lancement navigateur<br/>EXIT CODE 2]
 
-%% Création contexte et page
-BrowserSuccess -->|OUI| CreateContext[🖥️ Création Contexte Navigateur<br/>+ Configuration Proxy/Cookies]
-CreateContext --> CreatePage[📄 Création Page Initiale]
-CreatePage --> StartTracing[📹 Démarrage Enregistrement Traces]
+%% Creation contexte et page
+BrowserSuccess -->|OUI| CreateContext[🖥️ Creation Contexte Navigateur<br/>+ Configuration Proxy/Cookies]
+CreateContext --> CreatePage[📄 Creation Page Initiale]
+CreatePage --> StartTracing[📹 Demarrage Enregistrement Traces]
 
-%% Exécution des étapes
-StartTracing --> InitExecution[⚙️ Initialisation Exécution<br/>Compteur étapes = 0]
-InitExecution --> ExecuteSteps[🔄 Boucle d'Exécution des Étapes]
+%% Execution des etapes
+StartTracing --> InitExecution[⚙️ Initialisation Execution<br/>Compteur etapes = 0]
+InitExecution --> ExecuteSteps[🔄 Boucle d'Execution des Etapes]
 
-%% Traitement d'une étape
-ExecuteSteps --> NextStep{Étape suivante<br/>disponible ?}
-NextStep -->|NON| AllStepsComplete[✅ Toutes les Étapes Terminées]
+%% Traitement d'une etape
+ExecuteSteps --> NextStep{Etape suivante<br/>disponible ?}
+NextStep -->|NON| AllStepsComplete[✅ Toutes les Etapes Terminees]
 
-NextStep -->|OUI| IncrementCounter[📊 Incrément Compteur Étapes]
-IncrementCounter --> ExecuteStep[⚡ Exécution Étape Courante]
+NextStep -->|OUI| IncrementCounter[📊 Increment Compteur Etapes]
+IncrementCounter --> ExecuteStep[⚡ Execution Etape Courante]
 
-%% Résultat d'une étape
-ExecuteStep --> StepResult{Résultat<br/>étape ?}
+%% Resultat d'une etape
+ExecuteStep --> StepResult{Resultat<br/>etape ?}
 
-%% Étape en succès
-StepResult -->|SUCCÈS| StepSuccess[✅ Étape Réussie<br/>Status = 0]
-StepSuccess --> TakeScreenshot1[📸 Capture d'Écran Success]
-TakeScreenshot1 --> LogStepSuccess[📝 Log Étape OK]
-LogStepSuccess --> SaveStepResult1[💾 Sauvegarde Résultat Étape]
+%% Etape en succès
+StepResult -->|SUCCÈS| StepSuccess[✅ Etape Reussie<br/>Status = 0]
+StepSuccess --> TakeScreenshot1[📸 Capture d'Ecran Success]
+TakeScreenshot1 --> LogStepSuccess[📝 Log Etape OK]
+LogStepSuccess --> SaveStepResult1[💾 Sauvegarde Resultat Etape]
 SaveStepResult1 --> ExecuteSteps
 
-%% Étape en avertissement
-StepResult -->|AVERTISSEMENT| StepWarning[⚠️ Étape avec Avertissement<br/>Status = 1]
-StepWarning --> TakeScreenshot2[📸 Capture d'Écran Warning]
-TakeScreenshot2 --> LogStepWarning[📝 Log Étape Warning]
-LogStepWarning --> SaveStepResult2[💾 Sauvegarde Résultat Étape]
+%% Etape en avertissement
+StepResult -->|AVERTISSEMENT| StepWarning[⚠️ Etape avec Avertissement<br/>Status = 1]
+StepWarning --> TakeScreenshot2[📸 Capture d'Ecran Warning]
+TakeScreenshot2 --> LogStepWarning[📝 Log Etape Warning]
+LogStepWarning --> SaveStepResult2[💾 Sauvegarde Resultat Etape]
 SaveStepResult2 --> ExecuteSteps
 
-%% Étape en échec
-StepResult -->|ÉCHEC| StepFailure[❌ Étape en Échec<br/>Status = 2]
+%% Etape en echec
+StepResult -->|ECHEC| StepFailure[❌ Etape en Echec<br/>Status = 2]
 StepFailure --> AnalyzeError[🔍 Analyse de l'Erreur]
 
 %% Types d'erreurs
 AnalyzeError --> ErrorType{Type d'erreur ?}
 
-%% Timeout avec vérification erreur applicative
-ErrorType -->|TIMEOUT| CheckAppError[🔍 Vérification Erreur Applicative<br/>dans la page HTML]
-CheckAppError --> AppErrorFound{Erreur applicative<br/>détectée ?}
-AppErrorFound -->|OUI| LogAppError[📝 Log: Timeout dû à erreur applicative]
+%% Timeout avec verification erreur applicative
+ErrorType -->|TIMEOUT| CheckAppError[🔍 Verification Erreur Applicative<br/>dans la page HTML]
+CheckAppError --> AppErrorFound{Erreur applicative<br/>detectee ?}
+AppErrorFound -->|OUI| LogAppError[📝 Log: Timeout dû a erreur applicative]
 AppErrorFound -->|NON| LogTimeout[📝 Log: Timeout standard]
 LogAppError --> TakeErrorScreenshot
 LogTimeout --> TakeErrorScreenshot
 
 %% Autres erreurs
 ErrorType -->|NAVIGATION| LogNavError[📝 Log: Erreur de navigation]
-ErrorType -->|ELEMENT| LogElementError[📝 Log: Élément introuvable]
+ErrorType -->|ELEMENT| LogElementError[📝 Log: Element introuvable]
 ErrorType -->|AUTRE| LogOtherError[📝 Log: Autre erreur]
 
-LogNavError --> TakeErrorScreenshot[📸 Capture d'Écran Erreur]
+LogNavError --> TakeErrorScreenshot[📸 Capture d'Ecran Erreur]
 LogElementError --> TakeErrorScreenshot
 LogOtherError --> TakeErrorScreenshot
 
-TakeErrorScreenshot --> SaveStepError[💾 Sauvegarde Résultat Erreur<br/>Status = 2]
-SaveStepError --> StopOnError[🛑 Arrêt Exécution sur Erreur<br/>EXIT CODE 2]
+TakeErrorScreenshot --> SaveStepError[💾 Sauvegarde Resultat Erreur<br/>Status = 2]
+SaveStepError --> StopOnError[🛑 Arrêt Execution sur Erreur<br/>EXIT CODE 2]
 
 %% Finalisation succès
-AllStepsComplete --> CalculateResults[📊 Calcul Résultats Finaux<br/>Durée, Statut Global, Stats]
+AllStepsComplete --> CalculateResults[📊 Calcul Resultats Finaux<br/>Duree, Statut Global, Stats]
 CalculateResults --> StopTracing[📹 Arrêt Enregistrement Traces]
-StopTracing --> SaveTraces[💾 Sauvegarde Traces Réseau<br/>network_trace.zip]
+StopTracing --> SaveTraces[💾 Sauvegarde Traces Reseau<br/>network_trace.zip]
 
-SaveTraces --> GenerateReports[📋 Génération Rapports]
+SaveTraces --> GenerateReports[📋 Generation Rapports]
 GenerateReports --> SaveJSON[💾 Sauvegarde Rapport JSON<br/>scenario.json]
 
-%% Inscription API (si activée)
+%% Inscription API (si activee)
 SaveJSON --> CheckInscription{INSCRIPTION = true ?}
-CheckInscription -->|NON| LogNoInscription[📝 Log: Résultats non inscrits]
-CheckInscription -->|OUI| SendToAPI[🌐 Envoi Résultats vers API]
+CheckInscription -->|NON| LogNoInscription[📝 Log: Resultats non inscrits]
+CheckInscription -->|OUI| SendToAPI[🌐 Envoi Resultats vers API]
 
-SendToAPI --> APIInscriptionSuccess{Inscription API<br/>réussie ?}
+SendToAPI --> APIInscriptionSuccess{Inscription API<br/>reussie ?}
 APIInscriptionSuccess -->|NON| LogAPIError[📝 Log: Erreur inscription API<br/>Mais continue...]
 APIInscriptionSuccess -->|OUI| LogAPISuccess[📝 Log: Inscription API OK]
 
