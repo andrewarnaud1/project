@@ -1,5 +1,4 @@
 ```mermaid
-
 flowchart TD
 %% === PHASE 1: INITIALISATION ===
 Start([DEBUT EXECUTION SCENARIO]) --> InitEnv[Chargement variables d’environnement SCENARIO, LECTURE, BROWSER, etc.]
@@ -7,7 +6,7 @@ Start([DEBUT EXECUTION SCENARIO]) --> InitEnv[Chargement variables d’environne
 %% Validation variable SCENARIO (obligatoire)
 InitEnv --> CheckScenario{Variable SCENARIO définie ?}
 CheckScenario -->|NON| ExitScenarioKO[ARRÊT FATAL EXIT CODE 2 Variable SCENARIO manquante]
-CheckScenario -->|OUI| ValidScenario[SCENARIO = {nom_scenario}]
+CheckScenario -->|OUI| ValidScenario[SCENARIO = nom_scenario]
 
 %% === PHASE 2: MODE D'EXÉCUTION ===
 ValidScenario --> CheckLecture{Variable LECTURE ?}
