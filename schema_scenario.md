@@ -1,3 +1,13 @@
+Erreur :
+
+Unable to render rich display
+
+Lexical error on line 2. Unrecognized text.
+...XECUTION SCENARIO]) –> LoadEnv[📋 Charge
+-----------------------^
+
+For more information, see https://docs.github.com/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams
+
 ```mermaid
 
 flowchart TD
