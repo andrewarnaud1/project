@@ -1,7 +1,7 @@
 ```mermaid
 flowchart TD
 %% === PHASE 1: INITIALISATION ===
-Start([DEBUT EXECUTION SCENARIO]) –> InitEnv[Chargement variables environnement SCENARIO, LECTURE, BROWSER, etc.]
+Start([DEBUT EXECUTION SCENARIO]) --> InitEnv[Chargement variables environnement SCENARIO, LECTURE, BROWSER, etc.]
 
 %% Validation variable SCENARIO (obligatoire)
 InitEnv --> CheckScenario{Variable SCENARIO definie ?}
