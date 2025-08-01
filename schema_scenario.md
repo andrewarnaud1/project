@@ -1,6 +1,5 @@
 ```mermaid
 
-flowchart TD
 Start([DEBUT EXECUTION SCENARIO]) –> LoadEnv[Chargement Variables Environnement]
 
 LoadEnv --> ValidateEnv{Variables obligatoires<br/>presentes ?}
