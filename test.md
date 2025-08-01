@@ -1,7 +1,9 @@
+```mermaid
+
 flowchart TD
 Start([🚀 DÉBUT EXÉCUTION<br/>SCÉNARIO]) –> InitEnv[📋 Chargement variables<br/>environnement SCENARIO]
 
-```
+
 %% Vérification variable SCENARIO obligatoire
 InitEnv --> CheckScenario{Variable SCENARIO<br/>définie ?}
 CheckScenario -->|NON| ErrorScenario[❌ ERREUR FATALE<br/>Variable SCENARIO manquante<br/>EXIT CODE 2]
