@@ -1,7 +1,8 @@
-```mermaid
+
 flowchart TD
 Start([🚀 DÉBUT EXÉCUTION SCÉNARIO]) –> LoadEnv[📋 Chargement Variables d’Environnement]
 
+```
 %% Validation variables environnement
 LoadEnv --> ValidateEnv{Variables obligatoires<br/>présentes ?}
 ValidateEnv -->|NON| ErrorEnv[❌ ERREUR<br/>Variables manquantes<br/>EXIT CODE 2]
