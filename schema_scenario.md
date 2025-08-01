@@ -1,101 +1,96 @@
-```mermaid
 flowchart TD
 %% === PHASE 1: INITIALISATION ===
-Start([DEBUT EXECUTION SCENARIO]) --> InitEnv[Chargement variables d’environnement SCENARIO, LECTURE, BROWSER, etc.]
+Start([DEBUT EXECUTION SCENARIO]) –> InitEnv[Chargement variables environnement SCENARIO, LECTURE, BROWSER, etc.]
 
+```
 %% Validation variable SCENARIO (obligatoire)
-InitEnv --> CheckScenario{Variable SCENARIO définie ?}
-CheckScenario -->|NON| ExitScenarioKO[ARRÊT FATAL EXIT CODE 2 Variable SCENARIO manquante]
-CheckScenario -->|OUI| ValidScenario[SCENARIO = nom_scenario]
+InitEnv --> CheckScenario{Variable SCENARIO definie ?}
+CheckScenario -->|NON| ExitScenarioKO[ARRET FATAL - EXIT CODE 2 - Variable SCENARIO manquante]
+CheckScenario -->|OUI| ValidScenario[SCENARIO valide]
 
-%% === PHASE 2: MODE D'EXÉCUTION ===
+%% === PHASE 2: MODE D'EXECUTION ===
 ValidScenario --> CheckLecture{Variable LECTURE ?}
-CheckLecture -->|FALSE| CheckEnvDev{Environnement développement ?}
-CheckLecture -->|TRUE| InitAPIMode[Mode API activé]
+CheckLecture -->|FALSE| CheckEnvDev{Environnement developpement ?}
+CheckLecture -->|TRUE| InitAPIMode[Mode API active]
 
 %% Branche développement sans API
-CheckEnvDev -->|OUI| DevMode[Mode développement Sans vérifications API]
-CheckEnvDev -->|NON| ExitProdNoAPI[ARRÊT PROD EXIT CODE 2 API obligatoire en production]
+CheckEnvDev -->|OUI| DevMode[Mode developpement - Sans verifications API]
+CheckEnvDev -->|NON| ExitProdNoAPI[ARRET PROD - EXIT CODE 2 - API obligatoire en production]
 
 %% === PHASE 3: CONFIGURATION ===
-DevMode --> LoadConfigDev[Chargement configuration fichier local uniquement]
-InitAPIMode --> CallAPI[Appel API scénario]
+DevMode --> LoadConfigDev[Chargement configuration - fichier local uniquement]
+InitAPIMode --> CallAPI[Appel API scenario]
 
 %% Gestion erreur API
-CallAPI --> APIResult{Réponse API valide ?}
-APIResult -->|NON| HandleAPIError[Gestion erreur API Inscription status UNKNOWN]
-APIResult -->|OUI| ValidateAPIData[Données API récupérées]
+CallAPI --> APIResult{Reponse API valide ?}
+APIResult -->|NON| ExitAPIError[ARRET FATAL - EXIT CODE 3 - Erreur infrastructure API]
+APIResult -->|OUI| ValidateAPIData[Donnees API recuperees]
 
-HandleAPIError --> SaveFailureReport[Sauvegarde rapport échec Type: Infrastructure]
-SaveFailureReport --> ExitAPIError[ARRÊT EXIT CODE 3 Erreur infrastructure]
-
-%% === PHASE 4: VÉRIFICATIONS MÉTIER ===
-ValidateAPIData --> CheckScenarioActive{Scénario actif dans l'API ?}
-CheckScenarioActive -->|NON| LogInactive[Log: Scénario désactivé]
-CheckScenarioActive -->|OUI| CheckSchedule[Vérification planning]
-
-LogInactive --> ExitInactive[ARRÊT NORMAL EXIT CODE 0 Scénario inactif]
+%% === PHASE 4: VERIFICATIONS METIER ===
+ValidateAPIData --> CheckScenarioActive{Scenario actif dans API ?}
+CheckScenarioActive -->|NON| ExitInactive[ARRET NORMAL - EXIT CODE 0 - Scenario desactive]
+CheckScenarioActive -->|OUI| CheckSchedule[Verification planning]
 
 %% Vérification planning (jour férié + horaires)
-CheckSchedule --> IsHoliday{Jour férié ?}
+CheckSchedule --> IsHoliday{Jour ferie ?}
 IsHoliday -->|OUI| CheckHolidayFlag{flag_ferie = true ?}
-IsHoliday -->|NON| CheckTimeSlots[Vérification créneaux horaires]
+IsHoliday -->|NON| CheckTimeSlots[Verification creneaux horaires]
 
-CheckHolidayFlag -->|NON| ExitHoliday[ARRÊT PLANNING EXIT CODE 2 Interdit jours fériés]
+CheckHolidayFlag -->|NON| ExitHoliday[ARRET NORMAL - EXIT CODE 0 - Interdit jours feries]
 CheckHolidayFlag -->|OUI| CheckTimeSlots
 
-CheckTimeSlots --> HasValidSlot{Créneau valide trouvé ?}
-HasValidSlot -->|NON| ExitTimeSlot[ARRÊT PLANNING EXIT CODE 2 Hors créneaux autorisés]
-HasValidSlot -->|OUI| ScheduleOK[Planning respecté]
+CheckTimeSlots --> HasValidSlot{Creneau valide trouve ?}
+HasValidSlot -->|NON| ExitTimeSlot[ARRET NORMAL - EXIT CODE 0 - Hors creneaux autorises]
+HasValidSlot -->|OUI| ScheduleOK[Planning respecte - DEBUT EXECUTION REELLE]
 
-%% === PHASE 5: CONFIGURATION COMPLÈTE ===
+%% === PHASE 5: CONFIGURATION COMPLETE ===
 LoadConfigDev --> MergeConfig[Fusion configuration]
-ScheduleOK --> LoadConfigProd[Chargement config complète API + fichiers locaux]
+ScheduleOK --> LoadConfigProd[Chargement config complete - API + fichiers locaux]
 LoadConfigProd --> MergeConfig
 
-MergeConfig --> CreateDirectories[Création répertoires screenshots, rapports]
-CreateDirectories --> InitBrowserConfig[Configuration navigateur proxy, cookies, options]
+MergeConfig --> CreateDirectories[Creation repertoires - screenshots, rapports]
+CreateDirectories --> InitBrowserConfig[Configuration navigateur - proxy, cookies, options]
 
 %% === PHASE 6: LANCEMENT NAVIGATEUR ===
-InitBrowserConfig --> LaunchBrowser[Lancement Playwright Browser + Context]
-LaunchBrowser --> BrowserOK{Navigateur démarré ?}
-BrowserOK -->|NON| HandleBrowserError[Erreur navigateur]
-BrowserOK -->|OUI| CreatePage[Création première page]
+InitBrowserConfig --> LaunchBrowser[Lancement Playwright - Browser + Context]
+LaunchBrowser --> BrowserOK{Navigateur demarre ?}
+BrowserOK -->|NON| SaveBrowserFailure[Sauvegarde rapport echec navigateur - Status: FAILURE]
+BrowserOK -->|OUI| CreatePage[Creation premiere page]
 
-HandleBrowserError --> SaveBrowserFailure[Sauvegarde erreur navigateur]
-SaveBrowserFailure --> ExitBrowserError[ARRÊT EXIT CODE 2 Erreur navigateur]
+SaveBrowserFailure --> SendBrowserFailure[Inscription echec navigateur]
+SendBrowserFailure --> ExitBrowserError[ARRET - EXIT CODE 2 - Erreur navigateur]
 
-%% === PHASE 7: EXÉCUTION TESTS ===
-CreatePage --> StartTracing[Démarrage traces réseau]
-StartTracing --> RunTests[EXÉCUTION TESTS Étapes du scénario]
+%% === PHASE 7: EXECUTION TESTS ===
+CreatePage --> StartTracing[Demarrage traces reseau]
+StartTracing --> RunTests[EXECUTION TESTS - Etapes du scenario]
 
-RunTests --> TestsResult{Résultat tests ?}
-TestsResult -->|SUCCÈS| TestsSuccess[Tous tests OK]
-TestsResult -->|ÉCHEC| TestsFailure[Tests en échec]
-TestsResult -->|TIMEOUT| TestsTimeout[Timeout détecté]
+RunTests --> TestsResult{Resultat tests ?}
+TestsResult -->|SUCCES| TestsSuccess[Tous tests OK]
+TestsResult -->|ECHEC| TestsFailure[Tests en echec]
+TestsResult -->|TIMEOUT| TestsTimeout[Timeout detecte]
 
 %% === PHASE 8: FINALISATION ===
-TestsSuccess --> FinalizeSuccess[Finalisation succès Status: SUCCESS]
-TestsFailure --> FinalizeFailure[Finalisation échec Status: FAILURE]
-TestsTimeout --> FinalizeTimeout[Finalisation timeout Status: TIMEOUT]
+TestsSuccess --> FinalizeSuccess[Finalisation succes - Status: SUCCESS]
+TestsFailure --> FinalizeFailure[Finalisation echec - Status: FAILURE]
+TestsTimeout --> FinalizeTimeout[Finalisation timeout - Status: TIMEOUT]
 
-FinalizeSuccess --> GenerateReport[Génération rapport JSON]
+FinalizeSuccess --> GenerateReport[Generation rapport JSON]
 FinalizeFailure --> GenerateReport
 FinalizeTimeout --> GenerateReport
 
-GenerateReport --> StopTracing[Arrêt traces et captures]
+GenerateReport --> StopTracing[Arret traces et captures]
 StopTracing --> CloseBrowser[Fermeture navigateur]
 
-%% === PHASE 9: INSCRIPTION RÉSULTATS ===
-CloseBrowser --> CheckInscription{Inscription API activée ?}
+%% === PHASE 9: INSCRIPTION RESULTATS ===
+CloseBrowser --> CheckInscription{Inscription API activee ?}
 CheckInscription -->|NON| LocalSave[Sauvegarde locale uniquement]
-CheckInscription -->|OUI| SendToAPI[Envoi résultats à l'API]
+CheckInscription -->|OUI| SendToAPI[Envoi resultats a API]
 
-SendToAPI --> APISendResult{Envoi réussi ?}
-APISendResult -->|NON| APISendError[Erreur envoi API Sauvegarde locale]
-APISendResult -->|OUI| APISendOK[Résultats inscrits]
+SendToAPI --> APISendResult{Envoi reussi ?}
+APISendResult -->|NON| APISendError[Erreur envoi API - Sauvegarde locale]
+APISendResult -->|OUI| APISendOK[Resultats inscrits]
 
-LocalSave --> FinalSuccess[FIN SUCCÈS EXIT CODE 0]
+LocalSave --> FinalSuccess[FIN SUCCES - EXIT CODE 0]
 APISendError --> FinalSuccess
 APISendOK --> FinalSuccess
 
@@ -111,7 +106,7 @@ classDef infoClass fill:#e7f3ff,stroke:#17a2b8,stroke-width:2px,color:#0c5460
 class Start,InitEnv,LoadConfigDev,LoadConfigProd,MergeConfig,CreateDirectories,InitBrowserConfig,LaunchBrowser,CreatePage,StartTracing,GenerateReport,StopTracing,CloseBrowser processClass
 class CheckScenario,CheckLecture,CheckEnvDev,APIResult,CheckScenarioActive,IsHoliday,CheckHolidayFlag,HasValidSlot,BrowserOK,TestsResult,CheckInscription,APISendResult decisionClass
 class ValidScenario,InitAPIMode,ValidateAPIData,ScheduleOK,TestsSuccess,FinalizeSuccess,APISendOK,LocalSave,FinalSuccess successClass
-class ExitScenarioKO,ExitProdNoAPI,ExitAPIError,ExitInactive,ExitHoliday,ExitTimeSlot,ExitBrowserError,TestsFailure,TestsTimeout,FinalizeFailure,FinalizeTimeout,APISendError errorClass
-class DevMode,HandleAPIError,LogInactive,CheckSchedule,CheckTimeSlots,HandleBrowserError,SaveFailureReport,SaveBrowserFailure,APISendError warningClass
+class ExitScenarioKO,ExitProdNoAPI,ExitAPIError,ExitBrowserError,TestsFailure,TestsTimeout,FinalizeFailure,FinalizeTimeout,APISendError errorClass
+class DevMode,ExitInactive,ExitHoliday,ExitTimeSlot,SaveBrowserFailure,SendBrowserFailure warningClass
 class CallAPI,RunTests,SendToAPI infoClass
 ```
