@@ -1,160 +1,49 @@
 ```mermaid
-
 flowchart TD
-Start([DEBUT EXECUTION SCENARIO]) --> LoadEnv[Chargement Variables Environnement]
+%% Lancement du scénario avec JENKINS %%
+Start([DEBUT EXECUTION SCENARIO]) --> LancementJenkins[Chargement des variables d'environnement]
 
-LoadEnv --> ValidateEnv{Variables obligatoires<br/>presentes ?}
-ValidateEnv -->|NON| ErrorEnv[ERREUR<br/>Variables manquantes<br/>EXIT CODE 2]
+%% Vérifier la variable SCENARIO %%
+LancementJenkins --> ValiderVariableScenario{Variable SCENARIO OK ?}
+ValiderVariableScenario -->|OK| VariableScenarioOK[Chargement de la variable LECTURE]
+ValiderVariableScenario -->|KO| VariableScenarioKO[Fin du lancement mais pas d'exécution enregistrée]
 
-%% Chargement configuration fichier
-ValidateEnv -->|OUI| LoadConfig[Chargement Configuration<br/>Fichier YAML]
-LoadConfig --> ValidateConfig{Fichier configuration<br/>valide ?}
-ValidateConfig -->|NON| ErrorConfig[ERREUR<br/>Configuration invalide<br/>EXIT CODE 2]
+%% Vérifier la variable de LECTURE de l'API %%
+VariableScenarioOK --> VariableLecture{Vérifier la variable LECTURE}
+VariableLecture -->|True| VariableLectureTrue[Chargement des autres variables d'environnement et des variables API]
+VariableLecture -->|False| VerifierDev{Je suis en environnement de développement ?}
+VerifierDev --> |OUI| VerifierDevOUI[Chargement des autres variables d'environnement]
+VerifierDev -->|NON| VerifierDevNON[Fin de l'exécution car on a besoin de l'API en prod]
 
-%% Verification mode lecture API
-ValidateConfig -->|OUI| CheckLectureMode{LECTURE = true ?}
+%% %%
+VerifierDevOUI --> ChargementConfig(Chargement de la fonfiguration)
 
-%% Mode hors ligne LECTURE=false
-CheckLectureMode -->|NON| OfflineMode[Mode Hors Ligne<br/>Configuration fichier uniquement]
-OfflineMode --> CreateDirs1[Creation Repertoires Sortie]
+%% Appel API %%
+VariableLectureTrue --> AppelAPI{Appel API de LECTURE}
+AppelAPI -->|True| AppelAPITrue[Initialisation du dictionnaire des données API]
+AppelAPI -->|False| AppelAPIFalse[Initialisation du scénario sans les données API]
 
-%% Mode en ligne LECTURE=true
-CheckLectureMode -->|OUI| CallAPI[Appel API Scenario]
-CallAPI --> APISuccess{API accessible<br/>et donnees valides ?}
+%%  %%
+AppelAPITrue --> VerifierEtatActivation{Vérification de l'état du scénario}
+VerifierEtatActivation -->|False| VerifierEtatActivationFalse[Fin du lancement et pas d'exécution enregistrée]
 
-%% Erreur API
-APISuccess -->|NON| HandleAPIError[Gestion Erreur API]
-HandleAPIError --> SaveUnknownStatus[Sauvegarde Status UNKNOWN<br/>Type: Infrastructure]
-SaveUnknownStatus --> ErrorAPI[ARRET<br/>Erreur Infrastructure<br/>EXIT CODE 3]
+%%  %%
+VerifierEtatActivation -->|True| PlanningExecution{Vérification du planning d'exécution}
+PlanningExecution -->|True| PlanningExecutionTrue[Lancement de l'exéctution du scénario]
+PlanningExecution -->|False| PlanningExecutionFalse[Fin du lancement et pas d'exécution enregistrée]
 
-%% Succes API - Verification planning
-APISuccess -->|OUI| MergeConfig[Fusion Configuration<br/>API + Fichier + Environnement]
-MergeConfig --> CheckScheduling{Verification<br/>Planning Execution}
-
-%% Verification jours feries
-CheckScheduling --> IsHoliday{Jour ferie ?}
-IsHoliday -->|OUI| CheckHolidayFlag{flag_ferie = true ?}
-CheckHolidayFlag -->|NON| ErrorHoliday[ARRET<br/>Execution interdite<br/>les jours feries<br/>EXIT CODE 2]
-
-%% Verification plages horaires
-IsHoliday -->|NON| CheckTimeSlots[Verification Plages Horaires]
-CheckHolidayFlag -->|OUI| CheckTimeSlots
-
-CheckTimeSlots --> InTimeSlot{Heure dans<br/>plage autorisee ?}
-InTimeSlot -->|NON| ErrorTimeSlot[ARRET<br/>Heure hors planning<br/>EXIT CODE 2]
-
-%% Creation environnement execution
-InTimeSlot -->|OUI| CreateDirs2[Creation Repertoires Sortie]
-CreateDirs1 --> LoadUsers
-CreateDirs2 --> LoadUsers[Chargement Utilisateurs ISAC]
-
-LoadUsers --> ValidateUsers{Utilisateurs<br/>valides ?}
-ValidateUsers -->|NON| ErrorUsers[ERREUR<br/>Utilisateurs invalides<br/>EXIT CODE 2]
-
-%% Lancement navigateur
-ValidateUsers -->|OUI| LaunchBrowser[Lancement Navigateur Playwright]
-LaunchBrowser --> BrowserSuccess{Navigateur<br/>lance avec succes ?}
-
-BrowserSuccess -->|NON| ErrorBrowser[ERREUR<br/>Echec lancement navigateur<br/>EXIT CODE 2]
-
-%% Creation contexte et page
-BrowserSuccess -->|OUI| CreateContext[Creation Contexte Navigateur<br/>+ Configuration Proxy/Cookies]
-CreateContext --> CreatePage[Creation Page Initiale]
-CreatePage --> StartTracing[Demarrage Enregistrement Traces]
-
-%% Execution des etapes
-StartTracing --> InitExecution[Initialisation Execution<br/>Compteur etapes = 0]
-InitExecution --> ExecuteSteps[Boucle Execution des Etapes]
-
-%% Traitement une etape
-ExecuteSteps --> NextStep{Etape suivante<br/>disponible ?}
-NextStep -->|NON| AllStepsComplete[Toutes les Etapes Terminees]
-
-NextStep -->|OUI| IncrementCounter[Increment Compteur Etapes]
-IncrementCounter --> ExecuteStep[Execution Etape Courante]
-
-%% Resultat une etape
-ExecuteStep --> StepResult{Resultat<br/>etape ?}
-
-%% Etape en succes
-StepResult -->|SUCCES| StepSuccess[Etape Reussie<br/>Status = 0]
-StepSuccess --> TakeScreenshot1[Capture Ecran Success]
-TakeScreenshot1 --> LogStepSuccess[Log Etape OK]
-LogStepSuccess --> SaveStepResult1[Sauvegarde Resultat Etape]
-SaveStepResult1 --> ExecuteSteps
-
-%% Etape en avertissement
-StepResult -->|AVERTISSEMENT| StepWarning[Etape avec Avertissement<br/>Status = 1]
-StepWarning --> TakeScreenshot2[Capture Ecran Warning]
-TakeScreenshot2 --> LogStepWarning[Log Etape Warning]
-LogStepWarning --> SaveStepResult2[Sauvegarde Resultat Etape]
-SaveStepResult2 --> ExecuteSteps
-
-%% Etape en echec
-StepResult -->|ECHEC| StepFailure[Etape en Echec<br/>Status = 2]
-StepFailure --> AnalyzeError[Analyse de Erreur]
-
-%% Types erreurs
-AnalyzeError --> ErrorType{Type erreur ?}
-
-%% Timeout avec verification erreur applicative
-ErrorType -->|TIMEOUT| CheckAppError[Verification Erreur Applicative<br/>dans la page HTML]
-CheckAppError --> AppErrorFound{Erreur applicative<br/>detectee ?}
-AppErrorFound -->|OUI| LogAppError[Log: Timeout du a erreur applicative]
-AppErrorFound -->|NON| LogTimeout[Log: Timeout standard]
-LogAppError --> TakeErrorScreenshot
-LogTimeout --> TakeErrorScreenshot
-
-%% Autres erreurs
-ErrorType -->|NAVIGATION| LogNavError[Log: Erreur de navigation]
-ErrorType -->|ELEMENT| LogElementError[Log: Element introuvable]
-ErrorType -->|AUTRE| LogOtherError[Log: Autre erreur]
-
-LogNavError --> TakeErrorScreenshot[Capture Ecran Erreur]
-LogElementError --> TakeErrorScreenshot
-LogOtherError --> TakeErrorScreenshot
-
-TakeErrorScreenshot --> SaveStepError[Sauvegarde Resultat Erreur<br/>Status = 2]
-SaveStepError --> StopOnError[Arret Execution sur Erreur<br/>EXIT CODE 2]
-
-%% Finalisation succes
-AllStepsComplete --> CalculateResults[Calcul Resultats Finaux<br/>Duree, Statut Global, Stats]
-CalculateResults --> StopTracing[Arret Enregistrement Traces]
-StopTracing --> SaveTraces[Sauvegarde Traces Reseau<br/>network_trace.zip]
-
-SaveTraces --> GenerateReports[Generation Rapports]
-GenerateReports --> SaveJSON[Sauvegarde Rapport JSON<br/>scenario.json]
-
-%% Inscription API si activee
-SaveJSON --> CheckInscription{INSCRIPTION = true ?}
-CheckInscription -->|NON| LogNoInscription[Log: Resultats non inscrits]
-CheckInscription -->|OUI| SendToAPI[Envoi Resultats vers API]
-
-SendToAPI --> APIInscriptionSuccess{Inscription API<br/>reussie ?}
-APIInscriptionSuccess -->|NON| LogAPIError[Log: Erreur inscription API<br/>Mais continue...]
-APIInscriptionSuccess -->|OUI| LogAPISuccess[Log: Inscription API OK]
-
-%% Nettoyage final
-LogNoInscription --> CleanupResources[Nettoyage Ressources]
-LogAPIError --> CleanupResources
-LogAPISuccess --> CleanupResources
-
-CleanupResources --> CloseBrowser[Fermeture Navigateur]
-CloseBrowser --> FinalSuccess[SUCCES COMPLET<br/>EXIT CODE 0]
-
-%% Styling des noeuds
-classDef successClass fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724
-classDef errorClass fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#721c24
-classDef warningClass fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404
+%% Style des noeuds %%
+classDef succesClass fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724
+classDef erreurClass fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#721c24
+classDef attentionClass fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404
 classDef processClass fill:#e2e3e5,stroke:#6c757d,stroke-width:2px,color:#495057
 classDef decisionClass fill:#cce5ff,stroke:#007bff,stroke-width:2px,color:#004085
-classDef apiClass fill:#e7f3ff,stroke:#0066cc,stroke-width:2px,color:#003d7a
 
-%% Application des styles
-class FinalSuccess,StepSuccess,LogAPISuccess,AllStepsComplete successClass
-class ErrorEnv,ErrorConfig,ErrorAPI,ErrorHoliday,ErrorTimeSlot,ErrorUsers,ErrorBrowser,StepFailure,StopOnError errorClass
-class StepWarning,SaveUnknownStatus,LogAPIError,LogNoInscription warningClass
-class Start,LoadEnv,LoadConfig,CreateDirs1,CreateDirs2,LoadUsers,LaunchBrowser,CreateContext,CreatePage,StartTracing,InitExecution,ExecuteSteps processClass
-class ValidateEnv,ValidateConfig,CheckLectureMode,APISuccess,IsHoliday,CheckHolidayFlag,InTimeSlot,ValidateUsers,BrowserSuccess,NextStep,StepResult,ErrorType,AppErrorFound,CheckInscription,APIInscriptionSuccess decisionClass
-class CallAPI,MergeConfig,HandleAPIError,SendToAPI apiClass
+
+%% Application des styles %%
+class LancementJenkins,ChargementConfig processClass
+class ValiderVariableScenario,VariableLecture,VerifierDev,AppelAPI,VerifierEtatActivation,PlanningExecution decisionClass
+class VariableScenarioOK,VariableLectureTrue,VerifierDevOUI,AppelAPITrue,PlanningExecutionTrue succesClass
+class VariableScenarioKO,VerifierDevNON,VerifierEtatActivationFalse,AppelAPIFalse,PlanningExecutionFalse erreurClass
+%% class attentionClass
 ```
