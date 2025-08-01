@@ -2,7 +2,6 @@
 flowchart TD
 Start([🚀 DÉBUT EXÉCUTION SCÉNARIO]) –> LoadEnv[📋 Chargement Variables d’Environnement]
 
-```
 %% Validation variables environnement
 LoadEnv --> ValidateEnv{Variables obligatoires<br/>présentes ?}
 ValidateEnv -->|NON| ErrorEnv[❌ ERREUR<br/>Variables manquantes<br/>EXIT CODE 2]
@@ -158,6 +157,4 @@ class StepWarning,SaveUnknownStatus,LogAPIError,LogNoInscription warningClass
 class Start,LoadEnv,LoadConfig,CreateDirs1,CreateDirs2,LoadUsers,LaunchBrowser,CreateContext,CreatePage,StartTracing,InitExecution,ExecuteSteps processClass
 class ValidateEnv,ValidateConfig,CheckLectureMode,APISuccess,IsHoliday,CheckHolidayFlag,InTimeSlot,ValidateUsers,BrowserSuccess,NextStep,StepResult,ErrorType,AppErrorFound,CheckInscription,APIInscriptionSuccess decisionClass
 class CallAPI,MergeConfig,HandleAPIError,SendToAPI apiClass
-```
-
 ```
