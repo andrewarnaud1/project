@@ -1,0 +1,160 @@
+flowchart TD
+Start([🚀 DÉBUT EXÉCUTION SCÉNARIO]) –> LoadEnv[📋 Chargement Variables d’Environnement]
+
+```
+%% Validation variables environnement
+LoadEnv --> ValidateEnv{Variables obligatoires<br/>présentes ?}
+ValidateEnv -->|NON| ErrorEnv[❌ ERREUR<br/>Variables manquantes<br/>EXIT CODE 2]
+
+%% Chargement configuration fichier
+ValidateEnv -->|OUI| LoadConfig[📄 Chargement Configuration<br/>Fichier YAML]
+LoadConfig --> ValidateConfig{Fichier configuration<br/>valide ?}
+ValidateConfig -->|NON| ErrorConfig[❌ ERREUR<br/>Configuration invalide<br/>EXIT CODE 2]
+
+%% Vérification mode lecture API
+ValidateConfig -->|OUI| CheckLectureMode{LECTURE = true ?}
+
+%% Mode hors ligne (LECTURE=false)
+CheckLectureMode -->|NON| OfflineMode[📴 Mode Hors Ligne<br/>Configuration fichier uniquement]
+OfflineMode --> CreateDirs1[📁 Création Répertoires Sortie]
+
+%% Mode en ligne (LECTURE=true)
+CheckLectureMode -->|OUI| CallAPI[🌐 Appel API Scénario]
+CallAPI --> APISuccess{API accessible<br/>et données valides ?}
+
+%% Erreur API
+APISuccess -->|NON| HandleAPIError[⚠️ Gestion Erreur API]
+HandleAPIError --> SaveUnknownStatus[💾 Sauvegarde Status UNKNOWN<br/>Type: Infrastructure]
+SaveUnknownStatus --> ErrorAPI[❌ ARRÊT<br/>Erreur Infrastructure<br/>EXIT CODE 3]
+
+%% Succès API - Vérification planning
+APISuccess -->|OUI| MergeConfig[🔄 Fusion Configuration<br/>API + Fichier + Environnement]
+MergeConfig --> CheckScheduling{Vérification<br/>Planning d'Exécution}
+
+%% Vérification jours fériés
+CheckScheduling --> IsHoliday{Jour férié ?}
+IsHoliday -->|OUI| CheckHolidayFlag{flag_ferie = true ?}
+CheckHolidayFlag -->|NON| ErrorHoliday[❌ ARRÊT<br/>Exécution interdite<br/>les jours fériés<br/>EXIT CODE 2]
+
+%% Vérification plages horaires
+IsHoliday -->|NON| CheckTimeSlots[⏰ Vérification Plages Horaires]
+CheckHolidayFlag -->|OUI| CheckTimeSlots
+
+CheckTimeSlots --> InTimeSlot{Heure dans<br/>plage autorisée ?}
+InTimeSlot -->|NON| ErrorTimeSlot[❌ ARRÊT<br/>Heure hors planning<br/>EXIT CODE 2]
+
+%% Création environnement d'exécution
+InTimeSlot -->|OUI| CreateDirs2[📁 Création Répertoires Sortie]
+CreateDirs1 --> LoadUsers
+CreateDirs2 --> LoadUsers[👤 Chargement Utilisateurs ISAC]
+
+LoadUsers --> ValidateUsers{Utilisateurs<br/>valides ?}
+ValidateUsers -->|NON| ErrorUsers[❌ ERREUR<br/>Utilisateurs invalides<br/>EXIT CODE 2]
+
+%% Lancement navigateur
+ValidateUsers -->|OUI| LaunchBrowser[🌐 Lancement Navigateur Playwright]
+LaunchBrowser --> BrowserSuccess{Navigateur<br/>lancé avec succès ?}
+
+BrowserSuccess -->|NON| ErrorBrowser[❌ ERREUR<br/>Échec lancement navigateur<br/>EXIT CODE 2]
+
+%% Création contexte et page
+BrowserSuccess -->|OUI| CreateContext[🖥️ Création Contexte Navigateur<br/>+ Configuration Proxy/Cookies]
+CreateContext --> CreatePage[📄 Création Page Initiale]
+CreatePage --> StartTracing[📹 Démarrage Enregistrement Traces]
+
+%% Exécution des étapes
+StartTracing --> InitExecution[⚙️ Initialisation Exécution<br/>Compteur étapes = 0]
+InitExecution --> ExecuteSteps[🔄 Boucle d'Exécution des Étapes]
+
+%% Traitement d'une étape
+ExecuteSteps --> NextStep{Étape suivante<br/>disponible ?}
+NextStep -->|NON| AllStepsComplete[✅ Toutes les Étapes Terminées]
+
+NextStep -->|OUI| IncrementCounter[📊 Incrément Compteur Étapes]
+IncrementCounter --> ExecuteStep[⚡ Exécution Étape Courante]
+
+%% Résultat d'une étape
+ExecuteStep --> StepResult{Résultat<br/>étape ?}
+
+%% Étape en succès
+StepResult -->|SUCCÈS| StepSuccess[✅ Étape Réussie<br/>Status = 0]
+StepSuccess --> TakeScreenshot1[📸 Capture d'Écran Success]
+TakeScreenshot1 --> LogStepSuccess[📝 Log Étape OK]
+LogStepSuccess --> SaveStepResult1[💾 Sauvegarde Résultat Étape]
+SaveStepResult1 --> ExecuteSteps
+
+%% Étape en avertissement
+StepResult -->|AVERTISSEMENT| StepWarning[⚠️ Étape avec Avertissement<br/>Status = 1]
+StepWarning --> TakeScreenshot2[📸 Capture d'Écran Warning]
+TakeScreenshot2 --> LogStepWarning[📝 Log Étape Warning]
+LogStepWarning --> SaveStepResult2[💾 Sauvegarde Résultat Étape]
+SaveStepResult2 --> ExecuteSteps
+
+%% Étape en échec
+StepResult -->|ÉCHEC| StepFailure[❌ Étape en Échec<br/>Status = 2]
+StepFailure --> AnalyzeError[🔍 Analyse de l'Erreur]
+
+%% Types d'erreurs
+AnalyzeError --> ErrorType{Type d'erreur ?}
+
+%% Timeout avec vérification erreur applicative
+ErrorType -->|TIMEOUT| CheckAppError[🔍 Vérification Erreur Applicative<br/>dans la page HTML]
+CheckAppError --> AppErrorFound{Erreur applicative<br/>détectée ?}
+AppErrorFound -->|OUI| LogAppError[📝 Log: Timeout dû à erreur applicative]
+AppErrorFound -->|NON| LogTimeout[📝 Log: Timeout standard]
+LogAppError --> TakeErrorScreenshot
+LogTimeout --> TakeErrorScreenshot
+
+%% Autres erreurs
+ErrorType -->|NAVIGATION| LogNavError[📝 Log: Erreur de navigation]
+ErrorType -->|ELEMENT| LogElementError[📝 Log: Élément introuvable]
+ErrorType -->|AUTRE| LogOtherError[📝 Log: Autre erreur]
+
+LogNavError --> TakeErrorScreenshot[📸 Capture d'Écran Erreur]
+LogElementError --> TakeErrorScreenshot
+LogOtherError --> TakeErrorScreenshot
+
+TakeErrorScreenshot --> SaveStepError[💾 Sauvegarde Résultat Erreur<br/>Status = 2]
+SaveStepError --> StopOnError[🛑 Arrêt Exécution sur Erreur<br/>EXIT CODE 2]
+
+%% Finalisation succès
+AllStepsComplete --> CalculateResults[📊 Calcul Résultats Finaux<br/>Durée, Statut Global, Stats]
+CalculateResults --> StopTracing[📹 Arrêt Enregistrement Traces]
+StopTracing --> SaveTraces[💾 Sauvegarde Traces Réseau<br/>network_trace.zip]
+
+SaveTraces --> GenerateReports[📋 Génération Rapports]
+GenerateReports --> SaveJSON[💾 Sauvegarde Rapport JSON<br/>scenario.json]
+
+%% Inscription API (si activée)
+SaveJSON --> CheckInscription{INSCRIPTION = true ?}
+CheckInscription -->|NON| LogNoInscription[📝 Log: Résultats non inscrits]
+CheckInscription -->|OUI| SendToAPI[🌐 Envoi Résultats vers API]
+
+SendToAPI --> APIInscriptionSuccess{Inscription API<br/>réussie ?}
+APIInscriptionSuccess -->|NON| LogAPIError[📝 Log: Erreur inscription API<br/>Mais continue...]
+APIInscriptionSuccess -->|OUI| LogAPISuccess[📝 Log: Inscription API OK]
+
+%% Nettoyage final
+LogNoInscription --> CleanupResources[🧹 Nettoyage Ressources]
+LogAPIError --> CleanupResources
+LogAPISuccess --> CleanupResources
+
+CleanupResources --> CloseBrowser[🔒 Fermeture Navigateur]
+CloseBrowser --> FinalSuccess[🎯 SUCCÈS COMPLET<br/>EXIT CODE 0]
+
+%% Styling des noeuds
+classDef successClass fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724
+classDef errorClass fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#721c24
+classDef warningClass fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#856404
+classDef processClass fill:#e2e3e5,stroke:#6c757d,stroke-width:2px,color:#495057
+classDef decisionClass fill:#cce5ff,stroke:#007bff,stroke-width:2px,color:#004085
+classDef apiClass fill:#e7f3ff,stroke:#0066cc,stroke-width:2px,color:#003d7a
+
+%% Application des styles
+class FinalSuccess,StepSuccess,LogAPISuccess,AllStepsComplete successClass
+class ErrorEnv,ErrorConfig,ErrorAPI,ErrorHoliday,ErrorTimeSlot,ErrorUsers,ErrorBrowser,StepFailure,StopOnError errorClass
+class StepWarning,SaveUnknownStatus,LogAPIError,LogNoInscription warningClass
+class Start,LoadEnv,LoadConfig,CreateDirs1,CreateDirs2,LoadUsers,LaunchBrowser,CreateContext,CreatePage,StartTracing,InitExecution,ExecuteSteps processClass
+class ValidateEnv,ValidateConfig,CheckLectureMode,APISuccess,IsHoliday,CheckHolidayFlag,InTimeSlot,ValidateUsers,BrowserSuccess,NextStep,StepResult,ErrorType,AppErrorFound,CheckInscription,APIInscriptionSuccess decisionClass
+class CallAPI,MergeConfig,HandleAPIError,SendToAPI apiClass
+```
