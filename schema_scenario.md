@@ -2,7 +2,7 @@
 
 flowchart TD
 %% === PHASE 1: INITIALISATION ===
-Start([DÉBUT EXÉCUTION SCÉNARIO]) --> InitEnv[Chargement variables d’environnement SCENARIO, LECTURE, BROWSER, etc.]
+Start([DEBUT EXECUTION SCENARIO]) --> InitEnv[Chargement variables d’environnement SCENARIO, LECTURE, BROWSER, etc.]
 
 %% Validation variable SCENARIO (obligatoire)
 InitEnv --> CheckScenario{Variable SCENARIO définie ?}
