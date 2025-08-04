@@ -1,0 +1,153 @@
+Pourquoi j'obtiens ce type d'erreur ?
+
+(venv) aarnaud02@m069-2093770:~/Bureau/simulateur_v6 (feat/decoupage_execution)$ pytest scenarios_python/aai2_consultation_demande.py 
+=================================================== test session starts ===================================================
+platform linux -- Python 3.12.3, pytest-8.4.0, pluggy-1.6.0 -- /home/aarnaud02/Bureau/simulateur_v6/venv/bin/python3
+cachedir: .pytest_cache
+metadata: {'Python': '3.12.3', 'Platform': 'Linux-6.8.0-55-generic-x86_64-with-glibc2.39', 'Packages': {'pytest': '8.4.0', 'pluggy': '1.6.0'}, 'Plugins': {'playwright': '0.7.0', 'metadata': '3.1.1', 'base-url': '2.1.0', 'html': '4.1.1', 'json': '0.4.0'}, 'Base URL': ''}
+rootdir: /home/aarnaud02/Bureau/simulateur_v6
+configfile: pyproject.toml
+plugins: playwright-0.7.0, metadata-3.1.1, base-url-2.1.0, html-4.1.1, json-0.4.0
+collected 7 items                                                                                                         
+
+scenarios_python/aai2_consultation_demande.py::TestClass::test_identification 
+----------------------------------------------------- live log setup ------------------------------------------------------
+04-08-2025 21:06:40 [DEBUG] [Fixture SETUP execution] ----  DEBUT  ---- (execution.py:387)
+04-08-2025 21:06:40 [DEBUG] [Execution.__init__] ---- DEBUT ---- (execution.py:37)
+04-08-2025 21:06:40 [DEBUG] [Execution._get_environnement] ---- DEBUT ---- (execution.py:107)
+04-08-2025 21:06:40 [INFO] [_charger_parametres_navigateur] Paramètres navigateur chargés : ['navigateur', 'headless', 'proxy'] (environnement.py:245)
+04-08-2025 21:06:40 [INFO] [Environnement.charger_variables_environnement] ---- DEBUT ---- (environnement.py:92)
+04-08-2025 21:06:40 [INFO] [Environnement._verification_variables_obligatoires] ---- DEBUT ---- (environnement.py:127)
+04-08-2025 21:06:40 [INFO] nom_scenario (environnement.py:130)
+04-08-2025 21:06:40 [INFO] type_scenario (environnement.py:130)
+04-08-2025 21:06:40 [INFO] simu_path (environnement.py:130)
+04-08-2025 21:06:40 [INFO] scenarios_path (environnement.py:130)
+04-08-2025 21:06:40 [INFO] output_path (environnement.py:130)
+04-08-2025 21:06:40 [INFO] playwright_browsers_path (environnement.py:130)
+04-08-2025 21:06:40 [INFO] [Environnement._verification_variables_obligatoires] ----  FIN  ---- (environnement.py:139)
+04-08-2025 21:06:40 [INFO] [Environnement.charger_variables_environnement] environnement => {'nom_scenario': 'aai2_consultation_demand', 'type_scenario': 'web', 'plateforme': 'prod', 'simu_path': '/home/aarnaud02/Bureau/simulateur_v6', 'scenarios_path': '/home/aarnaud02/Bureau/scenarios_v6', 'output_path': '/home/aarnaud02/Bureau/simulateur_v6/output', 'playwright_browsers_path': '/browsers', 'utilisateur_isac_path': '/opt/scenarios_v6/config/utilisateurs', 'lecture': False, 'inscription': False, 'url_base_api_injecteur': 'http://192.168.210.205/', 'navigateur': 'firefox', 'headless': False, 'proxy': ''} (environnement.py:115)
+04-08-2025 21:06:40 [INFO] [Environnement.charger_variables_environnement] ----  FIN  ---- (environnement.py:116)
+04-08-2025 21:06:40 [DEBUG] [Execution._get_environnement] environnement => {'nom_scenario': 'aai2_consultation_demand', 'type_scenario': 'web', 'plateforme': 'prod', 'simu_path': '/home/aarnaud02/Bureau/simulateur_v6', 'scenarios_path': '/home/aarnaud02/Bureau/scenarios_v6', 'output_path': '/home/aarnaud02/Bureau/simulateur_v6/output', 'playwright_browsers_path': '/browsers', 'utilisateur_isac_path': '/opt/scenarios_v6/config/utilisateurs', 'lecture': False, 'inscription': False, 'url_base_api_injecteur': 'http://192.168.210.205/', 'navigateur': 'firefox', 'headless': False, 'proxy': ''} (execution.py:118)
+04-08-2025 21:06:40 [DEBUG] [Execution._get_environnement] ----  FIN  ---- (execution.py:119)
+04-08-2025 21:06:40 [DEBUG] [Execution._get_donnees_scenario_api] ---- DEBUT ---- (execution.py:134)
+04-08-2025 21:06:40 [INFO] [Execution._get_donnees_scenario_api] Lecture API désactivé => False (execution.py:140)
+04-08-2025 21:06:40 [WARNING] [Execution._get_donnees_scenario_api] ⚠️ Sorties désactivées : environnement prod et lecture API OFF (execution.py:147)
+04-08-2025 21:06:40 [DEBUG] [Execution._get_donnees_scenario_api] ----  FIN  ----  (execution.py:176)
+04-08-2025 21:06:40 [DEBUG] [Execution._verifier_planing] ---- DEBUT ---- (execution.py:180)
+04-08-2025 21:06:40 [DEBUG] [Execution.get_config] ---- DEBUT ---- (execution.py:228)
+04-08-2025 21:06:40 [DEBUG] [Configuration._get_config_scenario] ---- DEBUT ---- (configuration.py:68)
+04-08-2025 21:06:40 [CRITICAL] [Configuration._get_config_scenario]❌ Impossible de lire le fichier de configuration du scenario
+Fichier introuvable : '/home/aarnaud02/Bureau/scenarios_v6/config/scenarios/aai2_consultation_demand.conf' (configuration.py:75)
+04-08-2025 21:06:40 [DEBUG] [Configuration._get_config_scenario] ----  FIN  ----  (configuration.py:81)
+04-08-2025 21:06:40 [CRITICAL] [Execution.get_config] Une erreur est survenue lors de la création de la configuration : cannot access local variable 'configuration_scenario' where it is not associated with a value (execution.py:235)
+04-08-2025 21:06:40 [DEBUG] [Execution.get_config] environnement => {'nom_scenario': 'aai2_consultation_demand', 'type_scenario': 'web', 'plateforme': 'prod', 'simu_path': '/home/aarnaud02/Bureau/simulateur_v6', 'scenarios_path': '/home/aarnaud02/Bureau/scenarios_v6', 'output_path': '/home/aarnaud02/Bureau/simulateur_v6/output', 'playwright_browsers_path': '/browsers', 'utilisateur_isac_path': '/opt/scenarios_v6/config/utilisateurs', 'lecture': False, 'inscription': False, 'url_base_api_injecteur': 'http://192.168.210.205/', 'navigateur': 'firefox', 'headless': False, 'proxy': ''} (execution.py:241)
+04-08-2025 21:06:40 [DEBUG] [Execution.get_config] ----  FIN  ---- (execution.py:242)
+04-08-2025 21:06:40 [DEBUG] [Execution.gestion_repertoires_sortie] ---- DEBUT ---- (execution.py:263)
+04-08-2025 21:06:40 [INFO] [Execution.gestion_repertoires_sortie] Chemin des répertoires construits avec la configuration (execution.py:288)
+ERROR
+
+========================================================= ERRORS ==========================================================
+_____________________________________ ERROR at setup of TestClass.test_identification _____________________________________
+
+    @pytest.fixture(scope="session")
+    def execution():
+        """Crée un scénario unique pour tous les tests et le finalise à la fin."""
+        fixture_name = contexte_actuel()
+        LOGGER.debug("[Fixture SETUP %s] ----  DEBUT  ----", fixture_name)
+    
+>       execution_scenario = Execution()
+                             ^^^^^^^^^^^
+
+src/simulateur/execution.py:389: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/simulateur/execution.py:79: in __init__
+    self.gestion_repertoires_sortie()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.simulateur.execution.Execution object at 0x76933bb32120>
+
+    def gestion_repertoires_sortie(self):
+        """
+        Crée les répertoires de screenshots et de rapports.
+    
+        Args:
+            configuration (dict): Dictionnaire contenant les chemins de sortie,
+                                le nom du scénario, etc.
+    
+        Returns:
+            None
+        """
+        methode_name = contexte_actuel(self)
+        LOGGER.debug("[%s] ---- DEBUT ----", methode_name)
+    
+        # Récupération de self.date (date et heur du lancement)
+        # au format isoformat et conversion en objet datetime
+        # pour pouvoir le manipuler extraire l'heure et la date
+        date_heure = datetime.strptime(self.date[0], "%Y-%m-%dT%H:%M:%S.%f")
+        date = date_heure.date()
+        heure = date_heure.strftime("%H:%M:%S")
+    
+        # Configuration des répertoires screenshot et rapports avec les données API
+        if self.donnees_scenario_api:
+            nom_app = self.donnees_scenario_api.get("application").get("nom", False)
+            nom_scenario = self.donnees_scenario_api.get("nom", False)
+            LOGGER.info(
+                "[%s] Chemin des répertoires construits avec les données API",
+                methode_name,
+            )
+            self.config["screenshot_dir"] = (
+                f"{self.config['output_path']}/screenshots/{nom_app}/{nom_scenario}/{date}/{heure}"
+            )
+            self.config["report_dir"] = (
+                f"{self.config['output_path']}/rapports/{nom_app}/{nom_scenario}/{date}/{heure}"
+            )
+        else:
+            # Configuration des répertoires screenshot et rapports avec les données de configuration
+            LOGGER.info(
+                "[%s] Chemin des répertoires construits avec la configuration",
+                methode_name,
+            )
+            self.config["screenshot_dir"] = (
+>               f"{self.config['output_path']}/screenshots/NO_API/{self.config['nom_scenario']}/{date}/{heure}"
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+            )
+E           KeyError: 'output_path'
+
+src/simulateur/execution.py:293: KeyError
+--------------------------------------------------- Captured log setup ----------------------------------------------------
+DEBUG    src.simulateur.execution:execution.py:387 [Fixture SETUP execution] ----  DEBUT  ----
+DEBUG    src.simulateur.execution:execution.py:37 [Execution.__init__] ---- DEBUT ----
+DEBUG    src.simulateur.execution:execution.py:107 [Execution._get_environnement] ---- DEBUT ----
+INFO     src.simulateur.environnement:environnement.py:245 [_charger_parametres_navigateur] Paramètres navigateur chargés : ['navigateur', 'headless', 'proxy']
+INFO     src.simulateur.environnement:environnement.py:92 [Environnement.charger_variables_environnement] ---- DEBUT ----
+INFO     src.simulateur.environnement:environnement.py:127 [Environnement._verification_variables_obligatoires] ---- DEBUT ----
+INFO     src.simulateur.environnement:environnement.py:130 nom_scenario
+INFO     src.simulateur.environnement:environnement.py:130 type_scenario
+INFO     src.simulateur.environnement:environnement.py:130 simu_path
+INFO     src.simulateur.environnement:environnement.py:130 scenarios_path
+INFO     src.simulateur.environnement:environnement.py:130 output_path
+INFO     src.simulateur.environnement:environnement.py:130 playwright_browsers_path
+INFO     src.simulateur.environnement:environnement.py:139 [Environnement._verification_variables_obligatoires] ----  FIN  ----
+INFO     src.simulateur.environnement:environnement.py:115 [Environnement.charger_variables_environnement] environnement => {'nom_scenario': 'aai2_consultation_demand', 'type_scenario': 'web', 'plateforme': 'prod', 'simu_path': '/home/aarnaud02/Bureau/simulateur_v6', 'scenarios_path': '/home/aarnaud02/Bureau/scenarios_v6', 'output_path': '/home/aarnaud02/Bureau/simulateur_v6/output', 'playwright_browsers_path': '/browsers', 'utilisateur_isac_path': '/opt/scenarios_v6/config/utilisateurs', 'lecture': False, 'inscription': False, 'url_base_api_injecteur': 'http://192.168.210.205/', 'navigateur': 'firefox', 'headless': False, 'proxy': ''}
+INFO     src.simulateur.environnement:environnement.py:116 [Environnement.charger_variables_environnement] ----  FIN  ----
+DEBUG    src.simulateur.execution:execution.py:118 [Execution._get_environnement] environnement => {'nom_scenario': 'aai2_consultation_demand', 'type_scenario': 'web', 'plateforme': 'prod', 'simu_path': '/home/aarnaud02/Bureau/simulateur_v6', 'scenarios_path': '/home/aarnaud02/Bureau/scenarios_v6', 'output_path': '/home/aarnaud02/Bureau/simulateur_v6/output', 'playwright_browsers_path': '/browsers', 'utilisateur_isac_path': '/opt/scenarios_v6/config/utilisateurs', 'lecture': False, 'inscription': False, 'url_base_api_injecteur': 'http://192.168.210.205/', 'navigateur': 'firefox', 'headless': False, 'proxy': ''}
+DEBUG    src.simulateur.execution:execution.py:119 [Execution._get_environnement] ----  FIN  ----
+DEBUG    src.simulateur.execution:execution.py:134 [Execution._get_donnees_scenario_api] ---- DEBUT ----
+INFO     src.simulateur.execution:execution.py:140 [Execution._get_donnees_scenario_api] Lecture API désactivé => False
+WARNING  src.simulateur.execution:execution.py:147 [Execution._get_donnees_scenario_api] ⚠️ Sorties désactivées : environnement prod et lecture API OFF
+DEBUG    src.simulateur.execution:execution.py:176 [Execution._get_donnees_scenario_api] ----  FIN  ---- 
+DEBUG    src.simulateur.execution:execution.py:180 [Execution._verifier_planing] ---- DEBUT ----
+DEBUG    src.simulateur.execution:execution.py:228 [Execution.get_config] ---- DEBUT ----
+DEBUG    src.simulateur.configuration:configuration.py:68 [Configuration._get_config_scenario] ---- DEBUT ----
+CRITICAL src.simulateur.configuration:configuration.py:75 [Configuration._get_config_scenario]❌ Impossible de lire le fichier de configuration du scenario
+Fichier introuvable : '/home/aarnaud02/Bureau/scenarios_v6/config/scenarios/aai2_consultation_demand.conf'
+DEBUG    src.simulateur.configuration:configuration.py:81 [Configuration._get_config_scenario] ----  FIN  ---- 
+CRITICAL src.simulateur.execution:execution.py:235 [Execution.get_config] Une erreur est survenue lors de la création de la configuration : cannot access local variable 'configuration_scenario' where it is not associated with a value
+DEBUG    src.simulateur.execution:execution.py:241 [Execution.get_config] environnement => {'nom_scenario': 'aai2_consultation_demand', 'type_scenario': 'web', 'plateforme': 'prod', 'simu_path': '/home/aarnaud02/Bureau/simulateur_v6', 'scenarios_path': '/home/aarnaud02/Bureau/scenarios_v6', 'output_path': '/home/aarnaud02/Bureau/simulateur_v6/output', 'playwright_browsers_path': '/browsers', 'utilisateur_isac_path': '/opt/scenarios_v6/config/utilisateurs', 'lecture': False, 'inscription': False, 'url_base_api_injecteur': 'http://192.168.210.205/', 'navigateur': 'firefox', 'headless': False, 'proxy': ''}
+DEBUG    src.simulateur.execution:execution.py:242 [Execution.get_config] ----  FIN  ----
+DEBUG    src.simulateur.execution:execution.py:263 [Execution.gestion_repertoires_sortie] ---- DEBUT ----
+INFO     src.simulateur.execution:execution.py:288 [Execution.gestion_repertoires_sortie] Chemin des répertoires construits avec la configuration
+================================================= short test summary info =================================================
+ERROR scenarios_python/aai2_consultation_demande.py::TestClass::test_identification - KeyError: 'output_path'
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+==================================================== 1 error in 0.21s =====================================================
