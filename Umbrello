@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xmi:XMI xmi:version=“2.0” xmlns:xmi=“http://www.omg.org/XMI” xmlns:xsi=“http://www.w3.org/2001/XMLSchema-instance” xmlns:uml=“http://www.eclipse.org/uml2/5.0.0/UML”>
+<uml:Model xmi:id=“m1” name=“SimulateurFramework”>
+
+```
+<!-- Package Simulateur -->
+<packagedElement xmi:type="uml:Package" xmi:id="simulateur_package" name="simulateur">
+  
+  <!-- Classe Execution -->
+  <packagedElement xmi:type="uml:Class" xmi:id="Execution" name="Execution">
+    <ownedAttribute xmi:id="exec_date" name="date" type="datetime"/>
+    <ownedAttribute xmi:id="exec_duree" name="duree" type="float"/>
+    <ownedAttribute xmi:id="exec_status" name="status" type="int"/>
+    <ownedAttribute xmi:id="exec_commentaire" name="commentaire" type="string"/>
+    <ownedAttribute xmi:id="exec_injecteur" name="injecteur" type="string"/>
+    <ownedAttribute xmi:id="exec_navigateur" name="navigateur" type="string"/>
+    <ownedAttribute xmi:id="exec_interface_ip" name="interface_ip" type="string"/>
+    <ownedAttribute xmi:id="exec_etapes" name="etapes" type="list"/>
+    <ownedAttribute xmi:id="exec_environnement" name="environnement" type="dict"/>
+    <ownedAttribute xmi:id="exec_config" name="config" type="dict"/>
+    <ownedAttribute xmi:id="exec_compteur_etape" name="compteur_etape" type="int"/>
+    
+    <ownedOperation xmi:id="exec_init" name="__init__"/>
+    <ownedOperation xmi:id="exec_get_environnement" name="_get_environnement"/>
+    <ownedOperation xmi:id="exec_get_donnees_api" name="_get_donnees_scenario_api"/>
+    <ownedOperation xmi:id="exec_verifier_planning" name="_verifier_planing"/>
+    <ownedOperation xmi:id="exec_get_config" name="get_config"/>
+    <ownedOperation xmi:id="exec_gestion_repertoires" name="gestion_repertoires_sortie"/>
+    <ownedOperation xmi:id="exec_ajoute_etape" name="ajoute_etape"/>
+    <ownedOperation xmi:id="exec_finalise" name="finalise"/>
+    <ownedOperation xmi:id="exec_save_json" name="save_to_json"/>
+  </packagedElement>
+
+  <!-- Classe Etape -->
+  <packagedElement xmi:type="uml:Class" xmi:id="Etape" name="Etape">
+    <ownedAttribute xmi:id="etape_etape" name="etape" type="dict"/>
+    <ownedAttribute xmi:id="etape_compteur_screenshot" name="compteur_screenshot" type="int"/>
+    
+    <ownedOperation xmi:id="etape_init" name="__init__"/>
+    <ownedOperation xmi:id="etape_set_ordre" name="set_ordre"/>
+    <ownedOperation xmi:id="etape_set_duree" name="set_duree"/>
+    <ownedOperation xmi:id="etape_set_status" name="set_status"/>
+    <ownedOperation xmi:id="etape_set_url" name="set_url"/>
+    <ownedOperation xmi:id="etape_set_commentaire" name="set_commentaire"/>
+    <ownedOperation xmi:id="etape_finalise" name="finalise"/>
+  </packagedElement>
+
+  <!-- Classe Environnement -->
+  <packagedElement xmi:type="uml:Class" xmi:id="Environnement" name="Environnement">
+    <ownedAttribute xmi:id="env_variables_obligatoires" name="variables_obligatoires" type="list"/>
+    <ownedAttribute xmi:id="env_nom_scenario" name="nom_scenario" type="dict"/>
+    <ownedAttribute xmi:id="env_chemins" name="chemins" type="dict"/>
+    <ownedAttribute xmi:id="env_variables_api" name="variables_interaction_api" type="dict"/>
+    <ownedAttribute xmi:id="env_parametres_nav" name="parametres_navigateur" type="dict"/>
+    <ownedAttribute xmi:id="env_plateforme" name="plateforme" type="dict"/>
+    <ownedAttribute xmi:id="env_type_scenario" name="type_scenario" type="dict"/>
+    
+    <ownedOperation xmi:id="env_init" name="__init__"/>
+    <ownedOperation xmi:id="env_charger_variables" name="charger_variables_environnement"/>
+    <ownedOperation xmi:id="env_verification_variables" name="_verification_variables_obligatoires"/>
+    <ownedOperation xmi:id="env_charger_nom_scenario" name="_charger_nom_scenario"/>
+    <ownedOperation xmi:id="env_charger_chemins" name="_charger_chemins"/>
+    <ownedOperation xmi:id="env_charger_variables_api" name="_charger_variables_interaction_api"/>
+    <ownedOperation xmi:id="env_charger_parametres_nav" name="_charger_parametres_navigateur"/>
+    <ownedOperation xmi:id="env_charger_plateforme" name="_charger_plateforme"/>
+    <ownedOperation xmi:id="env_charger_type_scenario" name="_charger_type_scenario"/>
+  </packagedElement>
+
+  <!-- Classe Configuration -->
+  <packagedElement xmi:type="uml:Class" xmi:id="Configuration" name="Configuration">
+    <ownedAttribute xmi:id="config_variables_obligatoires" name="variables_obligatoires" type="list"/>
+    <ownedAttribute xmi:id="config_environnement" name="environnement" type="dict"/>
+    <ownedAttribute xmi:id="config_scenario" name="configuration_scenario" type="dict"/>
+    <ownedAttribute xmi:id="config_commune" name="configuration_commune" type="dict"/>
+    
+    <ownedOperation xmi:id="config_init" name="__init__"/>
+    <ownedOperation xmi:id="config_get_scenario" name="_get_config_scenario"/>
+    <ownedOperation xmi:id="config_get_commune" name="_get_config_commune"/>
+    <ownedOperation xmi:id="config_creer_config" name="creer_configuration"/>
+    <ownedOperation xmi:id="config_recuperation_variables" name="_recuperation_variables_plateforme"/>
+  </packagedElement>
+
+</packagedElement>
+
+<!-- Package Utils -->
+<packagedElement xmi:type="uml:Package" xmi:id="utils_package" name="utils">
+  
+  <!-- Classe VerificateurTimeout -->
+  <packagedElement xmi:type="uml:Class" xmi:id="VerificateurTimeout" name="VerificateurTimeout">
+    <ownedAttribute xmi:id="timeout_config" name="config_execution" type="dict"/>
+    <ownedAttribute xmi:id="timeout_patterns" name="patterns" type="dict"/>
+    <ownedAttribute xmi:id="timeout_patterns_charges" name="patterns_charges" type="bool"/>
+    
+    <ownedOperation xmi:id="timeout_init" name="__init__"/>
+    <ownedOperation xmi:id="timeout_charger_fichiers" name="_charger_fichiers_erreurs"/>
+    <ownedOperation xmi:id="timeout_charger_commun" name="_charger_fichier_commun"/>
+    <ownedOperation xmi:id="timeout_charger_scenario" name="_charger_fichier_erreurs_scenario"/>
+    <ownedOperation xmi:id="timeout_verifier_cause" name="verifier_cause_timeout"/>
+  </packagedElement>
+
+  <!-- Package Planning Execution -->
+  <packagedElement xmi:type="uml:Package" xmi:id="planning_package" name="planning_execution">
+    
+    <!-- Fonctions utilitaires pour les plages horaires -->
+    <packagedElement xmi:type="uml:Class" xmi:id="PlagesHoraires" name="PlagesHoraires" visibility="public">
+      <ownedOperation xmi:id="plages_extraire" name="extraire_plages_horaires_jour" isStatic="true"/>
+      <ownedOperation xmi:id="plages_valider" name="valider_format_plage" isStatic="true"/>
+      <ownedOperation xmi:id="plages_est_dans" name="est_dans_plage_horaire" isStatic="true"/>
+      <ownedOperation xmi:id="plages_verifier" name="verifier_plages_horaires" isStatic="true"/>
+    </packagedElement>
+
+    <!-- Fonctions utilitaires pour les jours fériés -->
+    <packagedElement xmi:type="uml:Class" xmi:id="JoursFeries" name="JoursFeries" visibility="public">
+      <ownedOperation xmi:id="feries_est_jour" name="est_jour_ferie" isStatic="true"/>
+      <ownedOperation xmi:id="feries_verifier_flag" name="verifier_flag_ferie" isStatic="true"/>
+    </packagedElement>
+
+    <!-- Fonction principale de vérification -->
+    <packagedElement xmi:type="uml:Class" xmi:id="PlanningExecution" name="PlanningExecution" visibility="public">
+      <ownedOperation xmi:id="planning_verifier" name="verifier_planning_execution" isStatic="true"/>
+    </packagedElement>
+
+  </packagedElement>
+
+  <!-- Fonctions utilitaires -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ApiUtils" name="ApiUtils" visibility="public">
+    <ownedOperation xmi:id="api_lecture_scenario" name="lecture_api_scenario" isStatic="true"/>
+    <ownedOperation xmi:id="api_inscrire_resultats" name="inscrire_resultats_api" isStatic="true"/>
+    <ownedOperation xmi:id="api_lire_dernier_rejeu" name="lire_resultats_dernier_rejeux" isStatic="true"/>
+  </packagedElement>
+
+  <packagedElement xmi:type="uml:Class" xmi:id="NavigateurUtils" name="NavigateurUtils" visibility="public">
+    <ownedOperation xmi:id="nav_get_options" name="get_options_navigateur" isStatic="true"/>
+    <ownedOperation xmi:id="nav_get_credentials" name="get_http_credentials" isStatic="true"/>
+    <ownedOperation xmi:id="nav_get_cookies" name="get_cookies" isStatic="true"/>
+  </packagedElement>
+
+  <packagedElement xmi:type="uml:Class" xmi:id="ScreenshotManager" name="ScreenshotManager" visibility="public">
+    <ownedOperation xmi:id="screenshot_decoration" name="decoration_avant_screenshot" isStatic="true"/>
+    <ownedOperation xmi:id="screenshot_take" name="take_screenshot" isStatic="true"/>
+  </packagedElement>
+
+  <packagedElement xmi:type="uml:Class" xmi:id="GestionException" name="GestionException" visibility="public">
+    <ownedOperation xmi:id="exception_gestion" name="gestion_exception" isStatic="true"/>
+    <ownedOperation xmi:id="exception_construire_commentaire" name="construire_commentaire_erreur" isStatic="true"/>
+    <ownedOperation xmi:id="exception_est_timeout" name="est_timeout" isStatic="true"/>
+    <ownedOperation xmi:id="exception_nettoyer_timeout" name="nettoyer_message_timeout" isStatic="true"/>
+    <ownedOperation xmi:id="exception_nettoyer_erreur" name="nettoyer_message_erreur" isStatic="true"/>
+  </packagedElement>
+
+  <packagedElement xmi:type="uml:Class" xmi:id="YamlLoader" name="YamlLoader" visibility="public">
+    <ownedOperation xmi:id="yaml_load" name="load_yaml_file" isStatic="true"/>
+  </packagedElement>
+
+  <packagedElement xmi:type="uml:Class" xmi:id="ConstantesSimulateur" name="ConstantesSimulateur" visibility="public">
+    <ownedAttribute xmi:id="const_bool_true" name="VALEURS_BOOLEAN_TRUE" type="list" isStatic="true"/>
+    <ownedAttribute xmi:id="const_bool_false" name="VALEURS_BOOLEAN_FALSE" type="list" isStatic="true"/>
+    <ownedAttribute xmi:id="const_types_scenario" name="TYPES_SCENARIO_VALIDES" type="list" isStatic="true"/>
+    <ownedAttribute xmi:id="const_navigateurs" name="NAVIGATEURS_VALIDES" type="list" isStatic="true"/>
+    <ownedAttribute xmi:id="const_plateformes" name="PLATEFORMES_VALIDES" type="list" isStatic="true"/>
+  </packagedElement>
+
+</packagedElement>
+
+<!-- Relations entre les classes -->
+
+<!-- Execution utilise Environnement -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="exec_to_env" client="Execution" supplier="Environnement"/>
+
+<!-- Execution utilise Configuration -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="exec_to_config" client="Execution" supplier="Configuration"/>
+
+<!-- Execution agrège des Etapes -->
+<packagedElement xmi:type="uml:Association" xmi:id="exec_etapes_assoc" memberEnd="exec_etapes_end1 exec_etapes_end2">
+  <ownedEnd xmi:id="exec_etapes_end1" type="Execution" aggregation="none"/>
+  <ownedEnd xmi:id="exec_etapes_end2" type="Etape" aggregation="aggregate" multiplicity="*"/>
+</packagedElement>
+
+<!-- Configuration utilise Environnement -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="config_to_env" client="Configuration" supplier="Environnement"/>
+
+<!-- Execution utilise PlanningExecution -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="exec_to_planning" client="Execution" supplier="PlanningExecution"/>
+
+<!-- GestionException utilise VerificateurTimeout -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="exception_to_timeout" client="GestionException" supplier="VerificateurTimeout"/>
+
+<!-- PlanningExecution utilise PlagesHoraires et JoursFeries -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="planning_to_plages" client="PlanningExecution" supplier="PlagesHoraires"/>
+<packagedElement xmi:type="uml:Dependency" xmi:id="planning_to_feries" client="PlanningExecution" supplier="JoursFeries"/>
+
+<!-- Plusieurs classes utilisent YamlLoader -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="config_to_yaml" client="Configuration" supplier="YamlLoader"/>
+<packagedElement xmi:type="uml:Dependency" xmi:id="timeout_to_yaml" client="VerificateurTimeout" supplier="YamlLoader"/>
+
+<!-- Plusieurs classes utilisent ApiUtils -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="exec_to_api" client="Execution" supplier="ApiUtils"/>
+
+<!-- Environnement utilise ConstantesSimulateur -->
+<packagedElement xmi:type="uml:Dependency" xmi:id="env_to_const" client="Environnement" supplier="ConstantesSimulateur"/>
+```
+
+</uml:Model>
+</xmi:XMI>
