@@ -1,28 +1,81 @@
--- Rediriger la sortie vers un fichier dans un répertoire précis
-\o /chemin/vers/votre/repertoire/schema_tables_relations.txt
+Pour créer un schéma relationnel de votre base de données PostgreSQL, voici plusieurs approches :
 
--- Lister toutes les tables
-\echo '=== LISTE DES TABLES ==='
-\dt+
+## 1. Extraction du schéma en ligne de commande
 
--- Afficher les relations (clés étrangères)
-\echo '=== RELATIONS ENTRE TABLES ==='
+### Avec pg_dump (méthode recommandée)
+
+```bash
+# Extraire uniquement la structure (sans les données)
+pg_dump -h hostname -U username -d database_name --schema-only > schema.sql
+
+# Ou avec des options plus spécifiques
+pg_dump -h hostname -U username -d database_name -s --no-owner --no-privileges > schema.sql
+```
+
+### Avec psql pour générer un rapport personnalisé
+
+```bash
+psql -h hostname -U username -d database_name -c "
+SELECT 
+    t.table_name,
+    c.column_name,
+    c.data_type,
+    c.is_nullable,
+    c.column_default
+FROM information_schema.tables t
+JOIN information_schema.columns c ON t.table_name = c.table_name
+WHERE t.table_schema = 'public'
+ORDER BY t.table_name, c.ordinal_position;
+" > tables_structure.txt
+```
+
+### Extraire les relations (clés étrangères)
+
+```bash
+psql -h hostname -U username -d database_name -c "
 SELECT
-    tc.table_name AS table_source,
-    kcu.column_name AS colonne_source,
-    ccu.table_name AS table_cible,
-    ccu.column_name AS colonne_cible,
-    tc.constraint_name AS nom_contrainte
+    tc.constraint_name,
+    tc.table_name,
+    kcu.column_name,
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name
 FROM information_schema.table_constraints AS tc
 JOIN information_schema.key_column_usage AS kcu
     ON tc.constraint_name = kcu.constraint_name
-    AND tc.table_schema = kcu.table_schema
 JOIN information_schema.constraint_column_usage AS ccu
     ON ccu.constraint_name = tc.constraint_name
-    AND ccu.table_schema = tc.table_schema
-WHERE tc.constraint_type = 'FOREIGN KEY'
-    AND tc.table_schema = 'public'
-ORDER BY tc.table_name;
+WHERE constraint_type = 'FOREIGN KEY';
+" > foreign_keys.txt
+```
 
--- Remettre la sortie sur le terminal
-\o
+## 2. Outils de visualisation
+
+### Outils graphiques gratuits
+
+- **DBeaver** : Interface graphique complète avec génération automatique de diagrammes ER
+- **pgAdmin** : Outil officiel PostgreSQL avec visualisation des schémas
+- **SchemaSpy** : Génère automatiquement de la documentation HTML avec diagrammes
+
+### Outils en ligne de commande
+
+```bash
+# SchemaSpy (génère HTML + diagrammes)
+java -jar schemaspy.jar -t pgsql -host hostname -db database_name -u username -p password -o output_directory
+
+# Ou avec Docker
+docker run --rm -v "$PWD/output:/output" schemaspy/schemaspy:latest -t pgsql -host hostname -db database_name -u username -p password -o /output
+```
+
+### Solutions basées sur le web
+
+- **dbdiagram.io** : Importez votre schéma SQL pour créer des diagrammes
+- **QuickDBD** : Outil en ligne pour créer rapidement des diagrammes de base de données
+
+### Conversion vers des formats visuels
+
+Si vous avez le fichier SQL, vous pouvez utiliser des outils comme :
+
+- **PlantUML** avec des plugins pour convertir SQL vers diagrammes
+- **Mermaid** pour créer des diagrammes relationnels
+
+Quelle approche préférez-vous ? Je peux vous donner plus de détails sur l’une d’entre elles.​​​​​​​​​​​​​​​​
