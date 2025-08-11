@@ -1,0 +1,205 @@
+@startuml
+!define LIGHTBLUE #E1F5FE
+!define LIGHTGREEN #E8F5E8
+!define LIGHTYELLOW #FFF9C4
+!define LIGHTPINK #FCE4EC
+!define LIGHTGRAY #F5F5F5
+
+package “Noyau” <<LIGHTBLUE>> {
+class ExecuteurScenario {
+- configuration: Configuration
+- donnees_scenario: dict
+- etapes: List[Etape]
+- gestionnaire_navigateur: GestionnaireNavigateur
++ executer(): ResultatExecution
++ ajouter_etape(etape: Etape): void
++ finaliser(): ResultatExecution
+}
+
+```
+class Configuration {
+    - variables_environnement: dict
+    - configuration_fichier: dict
+    - donnees_api: dict
+    + charger_environnement(): dict
+    + charger_configuration_fichier(): dict
+    + fusionner_donnees_api(donnees_api: dict): void
+    + obtenir(cle: str, defaut=None): Any
+    + __getitem__(cle: str): Any
+}
+
+class Etape {
+    - nom: str
+    - ordre: int
+    - heure_debut: float
+    - duree: float
+    - statut: StatutEtape
+    - url: str
+    - commentaire: str
+    - captures_ecran: List[str]
+    + demarrer(): void
+    + terminer(statut: StatutEtape, commentaire: str): void
+    + prendre_capture_ecran(page: Page, erreur: bool = False): str
+}
+
+enum StatutEtape {
+    SUCCES = 0
+    AVERTISSEMENT = 1
+    ERREUR = 2
+    INCONNU = 3
+}
+
+class ResultatExecution {
+    - nom_scenario: str
+    - heure_debut: datetime
+    - duree: float
+    - statut: StatutEtape
+    - etapes: List[Etape]
+    - metadonnees: dict
+    + vers_dictionnaire(): dict
+    + sauvegarder_json(chemin_fichier: str): void
+    + obtenir_resume(): dict
+}
+```
+
+}
+
+package “Navigateur” <<LIGHTGREEN>> {
+class GestionnaireNavigateur {
+- contexte_playwright: BrowserContext
+- page: Page
+- configuration: Configuration
++ lancer(): Page
++ fermer(): void
++ prendre_capture_ecran(chemin: str): str
++ obtenir_page(): Page
+}
+
+```
+class GestionnaireCaptureEcran {
+    - configuration: Configuration
+    - compteur: int
+    + prendre(page: Page, etape: Etape, erreur: bool = False): str
+    + ajouter_decorations(page: Page, titre: str): void
+    + supprimer_decorations(page: Page): void
+}
+```
+
+}
+
+package “API” <<LIGHTYELLOW>> {
+interface ClientAPI {
++ obtenir_scenario(id_scenario: str): dict
++ envoyer_resultats(donnees: dict): bool
++ obtenir_derniere_execution(id_scenario: str): dict
+}
+
+```
+class ClientAPIHttp implements ClientAPI {
+    - url_base: str
+    - timeout: int
+    + obtenir_scenario(id_scenario: str): dict
+    + envoyer_resultats(donnees: dict): bool
+    + obtenir_derniere_execution(id_scenario: str): dict
+}
+```
+
+}
+
+package “Validation” <<LIGHTPINK>> {
+class ValidateurPlanning {
+- donnees_planning: dict
++ valider_heure_execution(): bool
++ verifier_jours_feries(): bool
++ verifier_creneaux_horaires(): bool
+}
+
+```
+class VerificateurCreneauxHoraires {
+    + est_dans_creneau(heure_actuelle: time, creneaux: List[dict]): bool
+    + valider_format_creneau(creneau: dict): bool
+}
+
+class VerificateurJoursFeries {
+    + est_jour_ferie(date: datetime): bool
+    + valider_flag_ferie(flag: bool, est_ferie: bool): bool
+}
+```
+
+}
+
+package “Actions.Web” <<LIGHTGRAY>> {
+class ActionsWeb {
++ cliquer(localisateur: str, page: Page): bool
++ remplir(localisateur: str, texte: str, page: Page): bool
++ attendre(localisateur: str, page: Page, timeout: int): bool
++ naviguer(url: str, page: Page): bool
+}
+}
+
+package “Actions.Exadata” <<LIGHTGRAY>> {
+class ActionsExadata {
++ cliquer_image(chemin_image: str, page: Page): bool
++ saisir_texte(chemin_image: str, texte: str, page: Page): bool
++ attendre_image(chemin_image: str, page: Page): bool
++ trouver_coordonnees_image(chemin_image: str, capture: str): Tuple[int, int]
+}
+
+```
+class ComparateurImages {
+    + trouver_modele(modele: str, capture: str, confiance: float): Optional[Tuple[int, int]]
+    + prendre_capture_ecran(page: Page): str
+    + comparer_images(img1: str, img2: str): float
+}
+```
+
+}
+
+package “Utilitaires” <<LIGHTBLUE>> {
+class ChargeurFichiers {
++ charger_yaml(chemin_fichier: str): dict
++ charger_json(chemin_fichier: str): dict
++ assurer_repertoire(chemin: str): void
+}
+
+```
+class Chiffrement {
+    + dechiffrer_donnees_utilisateur(donnees_chiffrees: dict): str
+    + chiffrer_donnees_sensibles(donnees: str): dict
+}
+
+class GestionnaireErreurs {
+    + gerer_timeout(exception: Exception, page: Page): str
+    + nettoyer_message_erreur(message: str): str
+    + est_erreur_application(page: Page): bool
+}
+```
+
+}
+
+’ Relations principales
+ExecuteurScenario –> Configuration
+ExecuteurScenario –> Etape
+ExecuteurScenario –> GestionnaireNavigateur
+ExecuteurScenario –> ResultatExecution
+ExecuteurScenario –> ClientAPI
+ExecuteurScenario –> ValidateurPlanning
+
+Etape –> StatutEtape
+Etape –> GestionnaireCaptureEcran
+
+GestionnaireNavigateur –> GestionnaireCaptureEcran
+GestionnaireNavigateur –> Configuration
+
+Configuration –> ChargeurFichiers
+Configuration –> ClientAPI
+
+ValidateurPlanning –> VerificateurCreneauxHoraires
+ValidateurPlanning –> VerificateurJoursFeries
+
+ActionsExadata –> ComparateurImages
+ActionsWeb –> GestionnaireNavigateur
+
+GestionnaireErreurs –> Configuration
+
+@enduml
