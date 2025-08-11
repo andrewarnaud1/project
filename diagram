@@ -1,205 +1,428 @@
-@startuml
-!define LIGHTBLUE #E1F5FE
-!define LIGHTGREEN #E8F5E8
-!define LIGHTYELLOW #FFF9C4
-!define LIGHTPINK #FCE4EC
-!define LIGHTGRAY #F5F5F5
+<?xml version="1.0" encoding="UTF-8"?>
 
-package “Noyau” <<LIGHTBLUE>> {
-class ExecuteurScenario {
-- configuration: Configuration
-- donnees_scenario: dict
-- etapes: List[Etape]
-- gestionnaire_navigateur: GestionnaireNavigateur
-+ executer(): ResultatExecution
-+ ajouter_etape(etape: Etape): void
-+ finaliser(): ResultatExecution
-}
+<xmi:XMI xmi:version=“2.0” xmlns:xmi=“http://www.omg.org/XMI” xmlns:xsi=“http://www.w3.org/2001/XMLSchema-instance” xmlns:uml=“http://www.eclipse.org/uml2/3.0.0/UML”>
+<uml:Model xmi:id=“m1” name=“SimulateurV6”>
 
 ```
-class Configuration {
-    - variables_environnement: dict
-    - configuration_fichier: dict
-    - donnees_api: dict
-    + charger_environnement(): dict
-    + charger_configuration_fichier(): dict
-    + fusionner_donnees_api(donnees_api: dict): void
-    + obtenir(cle: str, defaut=None): Any
-    + __getitem__(cle: str): Any
-}
+<!-- Package Noyau -->
+<packagedElement xmi:type="uml:Package" xmi:id="pkg_noyau" name="Noyau">
+  
+  <!-- Classe ExecuteurScenario -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ExecuteurScenario" name="ExecuteurScenario">
+    <ownedAttribute xmi:id="ExecuteurScenario.configuration" name="configuration" type="Configuration" visibility="private"/>
+    <ownedAttribute xmi:id="ExecuteurScenario.donnees_scenario" name="donnees_scenario" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#String"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="ExecuteurScenario.etapes" name="etapes" visibility="private"/>
+    <ownedAttribute xmi:id="ExecuteurScenario.gestionnaire_navigateur" name="gestionnaire_navigateur" type="GestionnaireNavigateur" visibility="private"/>
+    
+    <ownedOperation xmi:id="ExecuteurScenario.executer" name="executer" visibility="public"/>
+    <ownedOperation xmi:id="ExecuteurScenario.ajouter_etape" name="ajouter_etape" visibility="public">
+      <ownedParameter name="etape" type="Etape"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ExecuteurScenario.finaliser" name="finaliser" visibility="public"/>
+  </packagedElement>
+  
+  <!-- Classe Configuration -->
+  <packagedElement xmi:type="uml:Class" xmi:id="Configuration" name="Configuration">
+    <ownedAttribute xmi:id="Configuration.variables_environnement" name="variables_environnement" visibility="private"/>
+    <ownedAttribute xmi:id="Configuration.configuration_fichier" name="configuration_fichier" visibility="private"/>
+    <ownedAttribute xmi:id="Configuration.donnees_api" name="donnees_api" visibility="private"/>
+    
+    <ownedOperation xmi:id="Configuration.charger_environnement" name="charger_environnement" visibility="public"/>
+    <ownedOperation xmi:id="Configuration.charger_configuration_fichier" name="charger_configuration_fichier" visibility="public"/>
+    <ownedOperation xmi:id="Configuration.fusionner_donnees_api" name="fusionner_donnees_api" visibility="public">
+      <ownedParameter name="donnees_api"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="Configuration.obtenir" name="obtenir" visibility="public">
+      <ownedParameter name="cle"/>
+      <ownedParameter name="defaut"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Classe Etape -->
+  <packagedElement xmi:type="uml:Class" xmi:id="Etape" name="Etape">
+    <ownedAttribute xmi:id="Etape.nom" name="nom" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#String"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="Etape.ordre" name="ordre" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#Integer"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="Etape.heure_debut" name="heure_debut" visibility="private"/>
+    <ownedAttribute xmi:id="Etape.duree" name="duree" visibility="private"/>
+    <ownedAttribute xmi:id="Etape.statut" name="statut" type="StatutEtape" visibility="private"/>
+    <ownedAttribute xmi:id="Etape.url" name="url" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#String"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="Etape.commentaire" name="commentaire" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#String"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="Etape.captures_ecran" name="captures_ecran" visibility="private"/>
+    
+    <ownedOperation xmi:id="Etape.demarrer" name="demarrer" visibility="public"/>
+    <ownedOperation xmi:id="Etape.terminer" name="terminer" visibility="public">
+      <ownedParameter name="statut" type="StatutEtape"/>
+      <ownedParameter name="commentaire"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="Etape.prendre_capture_ecran" name="prendre_capture_ecran" visibility="public">
+      <ownedParameter name="page"/>
+      <ownedParameter name="erreur"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Enumération StatutEtape -->
+  <packagedElement xmi:type="uml:Enumeration" xmi:id="StatutEtape" name="StatutEtape">
+    <ownedLiteral xmi:id="StatutEtape.SUCCES" name="SUCCES"/>
+    <ownedLiteral xmi:id="StatutEtape.AVERTISSEMENT" name="AVERTISSEMENT"/>
+    <ownedLiteral xmi:id="StatutEtape.ERREUR" name="ERREUR"/>
+    <ownedLiteral xmi:id="StatutEtape.INCONNU" name="INCONNU"/>
+  </packagedElement>
+  
+  <!-- Classe ResultatExecution -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ResultatExecution" name="ResultatExecution">
+    <ownedAttribute xmi:id="ResultatExecution.nom_scenario" name="nom_scenario" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#String"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="ResultatExecution.heure_debut" name="heure_debut" visibility="private"/>
+    <ownedAttribute xmi:id="ResultatExecution.duree" name="duree" visibility="private"/>
+    <ownedAttribute xmi:id="ResultatExecution.statut" name="statut" type="StatutEtape" visibility="private"/>
+    <ownedAttribute xmi:id="ResultatExecution.etapes" name="etapes" visibility="private"/>
+    <ownedAttribute xmi:id="ResultatExecution.metadonnees" name="metadonnees" visibility="private"/>
+    
+    <ownedOperation xmi:id="ResultatExecution.vers_dictionnaire" name="vers_dictionnaire" visibility="public"/>
+    <ownedOperation xmi:id="ResultatExecution.sauvegarder_json" name="sauvegarder_json" visibility="public">
+      <ownedParameter name="chemin_fichier"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ResultatExecution.obtenir_resume" name="obtenir_resume" visibility="public"/>
+  </packagedElement>
+</packagedElement>
 
-class Etape {
-    - nom: str
-    - ordre: int
-    - heure_debut: float
-    - duree: float
-    - statut: StatutEtape
-    - url: str
-    - commentaire: str
-    - captures_ecran: List[str]
-    + demarrer(): void
-    + terminer(statut: StatutEtape, commentaire: str): void
-    + prendre_capture_ecran(page: Page, erreur: bool = False): str
-}
+<!-- Package Navigateur -->
+<packagedElement xmi:type="uml:Package" xmi:id="pkg_navigateur" name="Navigateur">
+  
+  <!-- Classe GestionnaireNavigateur -->
+  <packagedElement xmi:type="uml:Class" xmi:id="GestionnaireNavigateur" name="GestionnaireNavigateur">
+    <ownedAttribute xmi:id="GestionnaireNavigateur.contexte_playwright" name="contexte_playwright" visibility="private"/>
+    <ownedAttribute xmi:id="GestionnaireNavigateur.page" name="page" visibility="private"/>
+    <ownedAttribute xmi:id="GestionnaireNavigateur.configuration" name="configuration" type="Configuration" visibility="private"/>
+    
+    <ownedOperation xmi:id="GestionnaireNavigateur.lancer" name="lancer" visibility="public"/>
+    <ownedOperation xmi:id="GestionnaireNavigateur.fermer" name="fermer" visibility="public"/>
+    <ownedOperation xmi:id="GestionnaireNavigateur.prendre_capture_ecran" name="prendre_capture_ecran" visibility="public">
+      <ownedParameter name="chemin"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="GestionnaireNavigateur.obtenir_page" name="obtenir_page" visibility="public"/>
+  </packagedElement>
+  
+  <!-- Classe GestionnaireCaptureEcran -->
+  <packagedElement xmi:type="uml:Class" xmi:id="GestionnaireCaptureEcran" name="GestionnaireCaptureEcran">
+    <ownedAttribute xmi:id="GestionnaireCaptureEcran.configuration" name="configuration" type="Configuration" visibility="private"/>
+    <ownedAttribute xmi:id="GestionnaireCaptureEcran.compteur" name="compteur" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#Integer"/>
+    </ownedAttribute>
+    
+    <ownedOperation xmi:id="GestionnaireCaptureEcran.prendre" name="prendre" visibility="public">
+      <ownedParameter name="page"/>
+      <ownedParameter name="etape" type="Etape"/>
+      <ownedParameter name="erreur"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="GestionnaireCaptureEcran.ajouter_decorations" name="ajouter_decorations" visibility="public">
+      <ownedParameter name="page"/>
+      <ownedParameter name="titre"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="GestionnaireCaptureEcran.supprimer_decorations" name="supprimer_decorations" visibility="public">
+      <ownedParameter name="page"/>
+    </ownedOperation>
+  </packagedElement>
+</packagedElement>
 
-enum StatutEtape {
-    SUCCES = 0
-    AVERTISSEMENT = 1
-    ERREUR = 2
-    INCONNU = 3
-}
+<!-- Package API -->
+<packagedElement xmi:type="uml:Package" xmi:id="pkg_api" name="API">
+  
+  <!-- Interface ClientAPI -->
+  <packagedElement xmi:type="uml:Interface" xmi:id="ClientAPI" name="ClientAPI">
+    <ownedOperation xmi:id="ClientAPI.obtenir_scenario" name="obtenir_scenario" visibility="public">
+      <ownedParameter name="id_scenario"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ClientAPI.envoyer_resultats" name="envoyer_resultats" visibility="public">
+      <ownedParameter name="donnees"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ClientAPI.obtenir_derniere_execution" name="obtenir_derniere_execution" visibility="public">
+      <ownedParameter name="id_scenario"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Classe ClientAPIHttp -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ClientAPIHttp" name="ClientAPIHttp">
+    <ownedAttribute xmi:id="ClientAPIHttp.url_base" name="url_base" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#String"/>
+    </ownedAttribute>
+    <ownedAttribute xmi:id="ClientAPIHttp.timeout" name="timeout" visibility="private">
+      <type xmi:type="uml:PrimitiveType" href="pathmap://UML_LIBRARIES/UMLPrimitiveTypes.library.uml#Integer"/>
+    </ownedAttribute>
+    
+    <ownedOperation xmi:id="ClientAPIHttp.obtenir_scenario" name="obtenir_scenario" visibility="public">
+      <ownedParameter name="id_scenario"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ClientAPIHttp.envoyer_resultats" name="envoyer_resultats" visibility="public">
+      <ownedParameter name="donnees"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ClientAPIHttp.obtenir_derniere_execution" name="obtenir_derniere_execution" visibility="public">
+      <ownedParameter name="id_scenario"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Relation d'implémentation -->
+  <packagedElement xmi:type="uml:InterfaceRealization" xmi:id="ClientAPIHttp_ClientAPI" client="ClientAPIHttp" supplier="ClientAPI"/>
+</packagedElement>
 
-class ResultatExecution {
-    - nom_scenario: str
-    - heure_debut: datetime
-    - duree: float
-    - statut: StatutEtape
-    - etapes: List[Etape]
-    - metadonnees: dict
-    + vers_dictionnaire(): dict
-    + sauvegarder_json(chemin_fichier: str): void
-    + obtenir_resume(): dict
-}
+<!-- Package Validation -->
+<packagedElement xmi:type="uml:Package" xmi:id="pkg_validation" name="Validation">
+  
+  <!-- Classe ValidateurPlanning -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ValidateurPlanning" name="ValidateurPlanning">
+    <ownedAttribute xmi:id="ValidateurPlanning.donnees_planning" name="donnees_planning" visibility="private"/>
+    
+    <ownedOperation xmi:id="ValidateurPlanning.valider_heure_execution" name="valider_heure_execution" visibility="public"/>
+    <ownedOperation xmi:id="ValidateurPlanning.verifier_jours_feries" name="verifier_jours_feries" visibility="public"/>
+    <ownedOperation xmi:id="ValidateurPlanning.verifier_creneaux_horaires" name="verifier_creneaux_horaires" visibility="public"/>
+  </packagedElement>
+  
+  <!-- Classe VerificateurCreneauxHoraires -->
+  <packagedElement xmi:type="uml:Class" xmi:id="VerificateurCreneauxHoraires" name="VerificateurCreneauxHoraires">
+    <ownedOperation xmi:id="VerificateurCreneauxHoraires.est_dans_creneau" name="est_dans_creneau" visibility="public">
+      <ownedParameter name="heure_actuelle"/>
+      <ownedParameter name="creneaux"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="VerificateurCreneauxHoraires.valider_format_creneau" name="valider_format_creneau" visibility="public">
+      <ownedParameter name="creneau"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Classe VerificateurJoursFeries -->
+  <packagedElement xmi:type="uml:Class" xmi:id="VerificateurJoursFeries" name="VerificateurJoursFeries">
+    <ownedOperation xmi:id="VerificateurJoursFeries.est_jour_ferie" name="est_jour_ferie" visibility="public">
+      <ownedParameter name="date"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="VerificateurJoursFeries.valider_flag_ferie" name="valider_flag_ferie" visibility="public">
+      <ownedParameter name="flag"/>
+      <ownedParameter name="est_ferie"/>
+    </ownedOperation>
+  </packagedElement>
+</packagedElement>
+
+<!-- Package Actions.Web -->
+<packagedElement xmi:type="uml:Package" xmi:id="pkg_actions_web" name="Actions.Web">
+  
+  <!-- Classe ActionsWeb -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ActionsWeb" name="ActionsWeb">
+    <ownedOperation xmi:id="ActionsWeb.cliquer" name="cliquer" visibility="public">
+      <ownedParameter name="localisateur"/>
+      <ownedParameter name="page"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ActionsWeb.remplir" name="remplir" visibility="public">
+      <ownedParameter name="localisateur"/>
+      <ownedParameter name="texte"/>
+      <ownedParameter name="page"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ActionsWeb.attendre" name="attendre" visibility="public">
+      <ownedParameter name="localisateur"/>
+      <ownedParameter name="page"/>
+      <ownedParameter name="timeout"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ActionsWeb.naviguer" name="naviguer" visibility="public">
+      <ownedParameter name="url"/>
+      <ownedParameter name="page"/>
+    </ownedOperation>
+  </packagedElement>
+</packagedElement>
+
+<!-- Package Actions.Exadata -->
+<packagedElement xmi:type="uml:Package" xmi:id="pkg_actions_exadata" name="Actions.Exadata">
+  
+  <!-- Classe ActionsExadata -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ActionsExadata" name="ActionsExadata">
+    <ownedOperation xmi:id="ActionsExadata.cliquer_image" name="cliquer_image" visibility="public">
+      <ownedParameter name="chemin_image"/>
+      <ownedParameter name="page"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ActionsExadata.saisir_texte" name="saisir_texte" visibility="public">
+      <ownedParameter name="chemin_image"/>
+      <ownedParameter name="texte"/>
+      <ownedParameter name="page"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ActionsExadata.attendre_image" name="attendre_image" visibility="public">
+      <ownedParameter name="chemin_image"/>
+      <ownedParameter name="page"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ActionsExadata.trouver_coordonnees_image" name="trouver_coordonnees_image" visibility="public">
+      <ownedParameter name="chemin_image"/>
+      <ownedParameter name="capture"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Classe ComparateurImages -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ComparateurImages" name="ComparateurImages">
+    <ownedOperation xmi:id="ComparateurImages.trouver_modele" name="trouver_modele" visibility="public">
+      <ownedParameter name="modele"/>
+      <ownedParameter name="capture"/>
+      <ownedParameter name="confiance"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ComparateurImages.prendre_capture_ecran" name="prendre_capture_ecran" visibility="public">
+      <ownedParameter name="page"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ComparateurImages.comparer_images" name="comparer_images" visibility="public">
+      <ownedParameter name="img1"/>
+      <ownedParameter name="img2"/>
+    </ownedOperation>
+  </packagedElement>
+</packagedElement>
+
+<!-- Package Utilitaires -->
+<packagedElement xmi:type="uml:Package" xmi:id="pkg_utilitaires" name="Utilitaires">
+  
+  <!-- Classe ChargeurFichiers -->
+  <packagedElement xmi:type="uml:Class" xmi:id="ChargeurFichiers" name="ChargeurFichiers">
+    <ownedOperation xmi:id="ChargeurFichiers.charger_yaml" name="charger_yaml" visibility="public">
+      <ownedParameter name="chemin_fichier"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ChargeurFichiers.charger_json" name="charger_json" visibility="public">
+      <ownedParameter name="chemin_fichier"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="ChargeurFichiers.assurer_repertoire" name="assurer_repertoire" visibility="public">
+      <ownedParameter name="chemin"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Classe Chiffrement -->
+  <packagedElement xmi:type="uml:Class" xmi:id="Chiffrement" name="Chiffrement">
+    <ownedOperation xmi:id="Chiffrement.dechiffrer_donnees_utilisateur" name="dechiffrer_donnees_utilisateur" visibility="public">
+      <ownedParameter name="donnees_chiffrees"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="Chiffrement.chiffrer_donnees_sensibles" name="chiffrer_donnees_sensibles" visibility="public">
+      <ownedParameter name="donnees"/>
+    </ownedOperation>
+  </packagedElement>
+  
+  <!-- Classe GestionnaireErreurs -->
+  <packagedElement xmi:type="uml:Class" xmi:id="GestionnaireErreurs" name="GestionnaireErreurs">
+    <ownedOperation xmi:id="GestionnaireErreurs.gerer_timeout" name="gerer_timeout" visibility="public">
+      <ownedParameter name="exception"/>
+      <ownedParameter name="page"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="GestionnaireErreurs.nettoyer_message_erreur" name="nettoyer_message_erreur" visibility="public">
+      <ownedParameter name="message"/>
+    </ownedOperation>
+    <ownedOperation xmi:id="GestionnaireErreurs.est_erreur_application" name="est_erreur_application" visibility="public">
+      <ownedParameter name="page"/>
+    </ownedOperation>
+  </packagedElement>
+</packagedElement>
+
+<!-- Relations/Associations -->
+
+<!-- ExecuteurScenario vers Configuration -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_executeur_config" memberEnd="end_executeur_config end_config_executeur">
+  <ownedEnd xmi:id="end_executeur_config" type="ExecuteurScenario" aggregation="none"/>
+  <ownedEnd xmi:id="end_config_executeur" type="Configuration" aggregation="none"/>
+</packagedElement>
+
+<!-- ExecuteurScenario vers Etape -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_executeur_etape" memberEnd="end_executeur_etape end_etape_executeur">
+  <ownedEnd xmi:id="end_executeur_etape" type="ExecuteurScenario" aggregation="none"/>
+  <ownedEnd xmi:id="end_etape_executeur" type="Etape" aggregation="composite" multiplicity="1..*"/>
+</packagedElement>
+
+<!-- ExecuteurScenario vers GestionnaireNavigateur -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_executeur_navigateur" memberEnd="end_executeur_navigateur end_navigateur_executeur">
+  <ownedEnd xmi:id="end_executeur_navigateur" type="ExecuteurScenario" aggregation="none"/>
+  <ownedEnd xmi:id="end_navigateur_executeur" type="GestionnaireNavigateur" aggregation="none"/>
+</packagedElement>
+
+<!-- ExecuteurScenario vers ResultatExecution -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_executeur_resultat" memberEnd="end_executeur_resultat end_resultat_executeur">
+  <ownedEnd xmi:id="end_executeur_resultat" type="ExecuteurScenario" aggregation="none"/>
+  <ownedEnd xmi:id="end_resultat_executeur" type="ResultatExecution" aggregation="none"/>
+</packagedElement>
+
+<!-- ExecuteurScenario vers ClientAPI -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_executeur_api" memberEnd="end_executeur_api end_api_executeur">
+  <ownedEnd xmi:id="end_executeur_api" type="ExecuteurScenario" aggregation="none"/>
+  <ownedEnd xmi:id="end_api_executeur" type="ClientAPI" aggregation="none"/>
+</packagedElement>
+
+<!-- ExecuteurScenario vers ValidateurPlanning -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_executeur_planning" memberEnd="end_executeur_planning end_planning_executeur">
+  <ownedEnd xmi:id="end_executeur_planning" type="ExecuteurScenario" aggregation="none"/>
+  <ownedEnd xmi:id="end_planning_executeur" type="ValidateurPlanning" aggregation="none"/>
+</packagedElement>
+
+<!-- Etape vers StatutEtape -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_etape_statut" memberEnd="end_etape_statut end_statut_etape">
+  <ownedEnd xmi:id="end_etape_statut" type="Etape" aggregation="none"/>
+  <ownedEnd xmi:id="end_statut_etape" type="StatutEtape" aggregation="none"/>
+</packagedElement>
+
+<!-- Etape vers GestionnaireCaptureEcran -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_etape_capture" memberEnd="end_etape_capture end_capture_etape">
+  <ownedEnd xmi:id="end_etape_capture" type="Etape" aggregation="none"/>
+  <ownedEnd xmi:id="end_capture_etape" type="GestionnaireCaptureEcran" aggregation="none"/>
+</packagedElement>
+
+<!-- GestionnaireNavigateur vers GestionnaireCaptureEcran -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_navigateur_capture" memberEnd="end_navigateur_capture end_capture_navigateur">
+  <ownedEnd xmi:id="end_navigateur_capture" type="GestionnaireNavigateur" aggregation="none"/>
+  <ownedEnd xmi:id="end_capture_navigateur" type="GestionnaireCaptureEcran" aggregation="none"/>
+</packagedElement>
+
+<!-- GestionnaireNavigateur vers Configuration -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_navigateur_config" memberEnd="end_navigateur_config end_config_navigateur">
+  <ownedEnd xmi:id="end_navigateur_config" type="GestionnaireNavigateur" aggregation="none"/>
+  <ownedEnd xmi:id="end_config_navigateur" type="Configuration" aggregation="none"/>
+</packagedElement>
+
+<!-- Configuration vers ChargeurFichiers -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_config_chargeur" memberEnd="end_config_chargeur end_chargeur_config">
+  <ownedEnd xmi:id="end_config_chargeur" type="Configuration" aggregation="none"/>
+  <ownedEnd xmi:id="end_chargeur_config" type="ChargeurFichiers" aggregation="none"/>
+</packagedElement>
+
+<!-- Configuration vers ClientAPI -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_config_api" memberEnd="end_config_api end_api_config">
+  <ownedEnd xmi:id="end_config_api" type="Configuration" aggregation="none"/>
+  <ownedEnd xmi:id="end_api_config" type="ClientAPI" aggregation="none"/>
+</packagedElement>
+
+<!-- ValidateurPlanning vers VerificateurCreneauxHoraires -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_planning_creneaux" memberEnd="end_planning_creneaux end_creneaux_planning">
+  <ownedEnd xmi:id="end_planning_creneaux" type="ValidateurPlanning" aggregation="none"/>
+  <ownedEnd xmi:id="end_creneaux_planning" type="VerificateurCreneauxHoraires" aggregation="none"/>
+</packagedElement>
+
+<!-- ValidateurPlanning vers VerificateurJoursFeries -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_planning_feries" memberEnd="end_planning_feries end_feries_planning">
+  <ownedEnd xmi:id="end_planning_feries" type="ValidateurPlanning" aggregation="none"/>
+  <ownedEnd xmi:id="end_feries_planning" type="VerificateurJoursFeries" aggregation="none"/>
+</packagedElement>
+
+<!-- ActionsExadata vers ComparateurImages -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_exadata_comparateur" memberEnd="end_exadata_comparateur end_comparateur_exadata">
+  <ownedEnd xmi:id="end_exadata_comparateur" type="ActionsExadata" aggregation="none"/>
+  <ownedEnd xmi:id="end_comparateur_exadata" type="ComparateurImages" aggregation="none"/>
+</packagedElement>
+
+<!-- ActionsWeb vers GestionnaireNavigateur -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_web_navigateur" memberEnd="end_web_navigateur end_navigateur_web">
+  <ownedEnd xmi:id="end_web_navigateur" type="ActionsWeb" aggregation="none"/>
+  <ownedEnd xmi:id="end_navigateur_web" type="GestionnaireNavigateur" aggregation="none"/>
+</packagedElement>
+
+<!-- GestionnaireErreurs vers Configuration -->
+<packagedElement xmi:type="uml:Association" xmi:id="assoc_erreurs_config" memberEnd="end_erreurs_config end_config_erreurs">
+  <ownedEnd xmi:id="end_erreurs_config" type="GestionnaireErreurs" aggregation="none"/>
+  <ownedEnd xmi:id="end_config_erreurs" type="Configuration" aggregation="none"/>
+</packagedElement>
 ```
 
-}
-
-package “Navigateur” <<LIGHTGREEN>> {
-class GestionnaireNavigateur {
-- contexte_playwright: BrowserContext
-- page: Page
-- configuration: Configuration
-+ lancer(): Page
-+ fermer(): void
-+ prendre_capture_ecran(chemin: str): str
-+ obtenir_page(): Page
-}
-
-```
-class GestionnaireCaptureEcran {
-    - configuration: Configuration
-    - compteur: int
-    + prendre(page: Page, etape: Etape, erreur: bool = False): str
-    + ajouter_decorations(page: Page, titre: str): void
-    + supprimer_decorations(page: Page): void
-}
-```
-
-}
-
-package “API” <<LIGHTYELLOW>> {
-interface ClientAPI {
-+ obtenir_scenario(id_scenario: str): dict
-+ envoyer_resultats(donnees: dict): bool
-+ obtenir_derniere_execution(id_scenario: str): dict
-}
-
-```
-class ClientAPIHttp implements ClientAPI {
-    - url_base: str
-    - timeout: int
-    + obtenir_scenario(id_scenario: str): dict
-    + envoyer_resultats(donnees: dict): bool
-    + obtenir_derniere_execution(id_scenario: str): dict
-}
-```
-
-}
-
-package “Validation” <<LIGHTPINK>> {
-class ValidateurPlanning {
-- donnees_planning: dict
-+ valider_heure_execution(): bool
-+ verifier_jours_feries(): bool
-+ verifier_creneaux_horaires(): bool
-}
-
-```
-class VerificateurCreneauxHoraires {
-    + est_dans_creneau(heure_actuelle: time, creneaux: List[dict]): bool
-    + valider_format_creneau(creneau: dict): bool
-}
-
-class VerificateurJoursFeries {
-    + est_jour_ferie(date: datetime): bool
-    + valider_flag_ferie(flag: bool, est_ferie: bool): bool
-}
-```
-
-}
-
-package “Actions.Web” <<LIGHTGRAY>> {
-class ActionsWeb {
-+ cliquer(localisateur: str, page: Page): bool
-+ remplir(localisateur: str, texte: str, page: Page): bool
-+ attendre(localisateur: str, page: Page, timeout: int): bool
-+ naviguer(url: str, page: Page): bool
-}
-}
-
-package “Actions.Exadata” <<LIGHTGRAY>> {
-class ActionsExadata {
-+ cliquer_image(chemin_image: str, page: Page): bool
-+ saisir_texte(chemin_image: str, texte: str, page: Page): bool
-+ attendre_image(chemin_image: str, page: Page): bool
-+ trouver_coordonnees_image(chemin_image: str, capture: str): Tuple[int, int]
-}
-
-```
-class ComparateurImages {
-    + trouver_modele(modele: str, capture: str, confiance: float): Optional[Tuple[int, int]]
-    + prendre_capture_ecran(page: Page): str
-    + comparer_images(img1: str, img2: str): float
-}
-```
-
-}
-
-package “Utilitaires” <<LIGHTBLUE>> {
-class ChargeurFichiers {
-+ charger_yaml(chemin_fichier: str): dict
-+ charger_json(chemin_fichier: str): dict
-+ assurer_repertoire(chemin: str): void
-}
-
-```
-class Chiffrement {
-    + dechiffrer_donnees_utilisateur(donnees_chiffrees: dict): str
-    + chiffrer_donnees_sensibles(donnees: str): dict
-}
-
-class GestionnaireErreurs {
-    + gerer_timeout(exception: Exception, page: Page): str
-    + nettoyer_message_erreur(message: str): str
-    + est_erreur_application(page: Page): bool
-}
-```
-
-}
-
-’ Relations principales
-ExecuteurScenario –> Configuration
-ExecuteurScenario –> Etape
-ExecuteurScenario –> GestionnaireNavigateur
-ExecuteurScenario –> ResultatExecution
-ExecuteurScenario –> ClientAPI
-ExecuteurScenario –> ValidateurPlanning
-
-Etape –> StatutEtape
-Etape –> GestionnaireCaptureEcran
-
-GestionnaireNavigateur –> GestionnaireCaptureEcran
-GestionnaireNavigateur –> Configuration
-
-Configuration –> ChargeurFichiers
-Configuration –> ClientAPI
-
-ValidateurPlanning –> VerificateurCreneauxHoraires
-ValidateurPlanning –> VerificateurJoursFeries
-
-ActionsExadata –> ComparateurImages
-ActionsWeb –> GestionnaireNavigateur
-
-GestionnaireErreurs –> Configuration
-
-@enduml
+</uml:Model>
+</xmi:XMI>
