@@ -1,7 +1,7 @@
 ```python
 # src/core/scenario.py
 
-“”“Classes core pour l’exécution des scénarios.”””
+"""Classes core pour l’exécution des scénarios."""
 
 import json
 import socket
@@ -16,7 +16,7 @@ from src.api import ApiClient
 
 @dataclass
 class Scenario:
-“”“Classe principale pour l’exécution des scénarios.”””
+"""Classe principale pour l’exécution des scénarios."""
 
 name: str
 config: Config
@@ -104,7 +104,7 @@ def _save_to_api(self):
 ```python
 
 class Step:
-“”“Représente une étape d’un scénario.”””
+"""Représente une étape d’un scénario."""
 
 def __init__(self, name: str, order: int, scenario: Scenario):
     self.name = name
@@ -170,7 +170,7 @@ def to_dict(self) -> Dict[str, Any]:
 ```python
 # src/core/builder.py
 
-“”“Builder pour créer les scénarios.”””
+"""Builder pour créer les scénarios."""
 
 from src.config import ConfigLoader
 from src.browser import BrowserFactory
@@ -178,7 +178,7 @@ from src.api import ApiClient
 from src.reporting import Reporter
 
 class ScenarioBuilder:
-“”“Constructeur de scénarios.”””
+"""Constructeur de scénarios."""
 
 
 @staticmethod
@@ -211,7 +211,7 @@ def create_from_config() -> Scenario:
 ```python
 # src/config/loader.py
 
-“”“Chargeur de configuration unifié.”””
+"""Chargeur de configuration unifié."""
 
 import os
 from dataclasses import dataclass
@@ -222,7 +222,7 @@ from src.api import ApiClient
 
 @dataclass
 class Config:
-“”“Configuration unifiée du scénario.”””
+"""Configuration unifiée du scénario."""
 
 # Informations de base
 scenario_name: str
@@ -253,7 +253,7 @@ user: Optional[Dict[str, Any]] = None
 
 ```python
 class ConfigLoader:
-“”“Chargeur de configuration unifié.”””
+"""Chargeur de configuration unifié."""
 
 @staticmethod
 def load() -> Config:
