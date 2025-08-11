@@ -3,7 +3,7 @@
 <xmi:XMI xmi:version=“2.0” xmlns:xmi=“http://www.omg.org/XMI” xmlns:xsi=“http://www.w3.org/2001/XMLSchema-instance” xmlns:uml=“http://www.eclipse.org/uml2/3.0.0/UML”>
 <uml:Model xmi:id=“m1” name=“SimulateurV6”>
 
-```
+
 <!-- Package Noyau -->
 <packagedElement xmi:type="uml:Package" xmi:id="pkg_noyau" name="Noyau">
   
@@ -422,7 +422,7 @@
   <ownedEnd xmi:id="end_erreurs_config" type="GestionnaireErreurs" aggregation="none"/>
   <ownedEnd xmi:id="end_config_erreurs" type="Configuration" aggregation="none"/>
 </packagedElement>
-```
+
 
 </uml:Model>
 </xmi:XMI>
