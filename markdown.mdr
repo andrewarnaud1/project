@@ -1,0 +1,365 @@
+# src/core/scenario.py
+
+“”“Classes core pour l’exécution des scénarios.”””
+
+import json
+import socket
+from datetime import datetime
+from typing import List, Optional, Dict, Any
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from src.config import Config
+from src.reporting import Reporter
+from src.api import ApiClient
+
+@dataclass
+class Scenario:
+“”“Classe principale pour l’exécution des scénarios.”””
+
+```
+name: str
+config: Config
+browser: 'Browser'
+api_client: Optional[ApiClient] = None
+reporter: Reporter = field(default_factory=Reporter)
+
+def __post_init__(self):
+    self.steps: List['Step'] = []
+    self.completed_steps: List['Step'] = []
+    self.step_counter = 0
+    self.start_time = datetime.now()
+    self.status = 3  # UNKNOWN par défaut
+    self.comment = ""
+    
+    # Infos système
+    self.hostname = socket.gethostname()
+    self.ip_address = socket.gethostbyname(socket.gethostname())
+
+def create_step(self, name: str) -> 'Step':
+    """Crée une nouvelle étape."""
+    self.step_counter += 1
+    step = Step(
+        name=name,
+        order=self.step_counter,
+        scenario=self
+    )
+    self.steps.append(step)
+    return step
+
+def add_completed_step(self, step: 'Step'):
+    """Ajoute une étape terminée."""
+    self.completed_steps.append(step)
+
+def finalize(self):
+    """Finalise le scénario."""
+    if self.completed_steps:
+        # Statut basé sur la dernière étape
+        last_step = self.completed_steps[-1]
+        self.status = last_step.status
+        self.comment = last_step.comment
+    
+    # Durée totale
+    total_duration = sum(step.duration for step in self.completed_steps)
+    
+    # Génération du rapport
+    self._generate_report()
+    
+    # Inscription API si activée
+    if self.config.api_enabled and self.api_client:
+        self._save_to_api()
+
+def _generate_report(self):
+    """Génère le rapport JSON."""
+    report_data = {
+        "identifiant": self.config.scenario_id,
+        "scenario": self.name,
+        "date": self.start_time.isoformat(),
+        "duree": sum(step.duration for step in self.completed_steps),
+        "status": self.status,
+        "nb_scene": len(self.completed_steps),
+        "commentaire": self.comment,
+        "injecteur": self.hostname,
+        "navigateur": self.config.browser_name,
+        "interface_ip": self.ip_address,
+        "status_initial": self.status,
+        "commentaire_initial": self.comment,
+        "har": self.config.generate_har,
+        "briques": [step.to_dict() for step in self.completed_steps],
+    }
+    
+    if self.config.report_dir:
+        report_path = Path(self.config.report_dir) / "scenario.json"
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(report_data, f, ensure_ascii=False, indent=4)
+    
+    return report_data
+
+def _save_to_api(self):
+    """Sauvegarde vers l'API."""
+    report_data = self._generate_report()
+    self.api_client.save_execution_results(report_data)
+```
+
+class Step:
+“”“Représente une étape d’un scénario.”””
+
+```
+def __init__(self, name: str, order: int, scenario: Scenario):
+    self.name = name
+    self.order = order
+    self.scenario = scenario
+    self.start_time = datetime.now()
+    self.duration = 0
+    self.status = None
+    self.comment = ""
+    self.url = ""
+    self.screenshots: List[str] = []
+    self._screenshot_counter = 0
+
+def take_screenshot(self, page, error: bool = False) -> str:
+    """Prend une capture d'écran pour cette étape."""
+    self._screenshot_counter += 1
+    return self.scenario.reporter.take_screenshot(
+        step=self, 
+        page=page, 
+        error=error,
+        screenshot_number=self._screenshot_counter
+    )
+
+def success(self, message: str):
+    """Marque l'étape comme réussie."""
+    self.status = 0
+    self.comment = f"OK - Étape {self.order} {self.name}: {message}"
+    self._finalize()
+
+def warning(self, message: str):
+    """Marque l'étape avec un avertissement."""
+    self.status = 1
+    self.comment = f"⚠️ - Étape {self.order} {self.name}: {message}"
+    self._finalize()
+
+def error(self, message: str):
+    """Marque l'étape comme échouée."""
+    self.status = 2
+    self.comment = f"❌ - Étape {self.order} {self.name}: {message}"
+    self._finalize()
+    # Note: pytest.exit() sera appelé par WebActions si nécessaire
+
+def _finalize(self):
+    """Finalise l'étape."""
+    self.duration = (datetime.now() - self.start_time).total_seconds()
+    self.url = getattr(self.scenario.browser.page, 'url', '')
+    self.scenario.add_completed_step(self)
+
+def to_dict(self) -> Dict[str, Any]:
+    """Convertit l'étape en dictionnaire pour le rapport."""
+    return {
+        "nom": self.name,
+        "ordre": self.order,
+        "date": self.start_time.isoformat(),
+        "duree": f"{self.duration:.3f}",
+        "status": self.status,
+        "url": self.url,
+        "commentaire": self.comment,
+        "etape_scenario": True
+    }
+```
+
+# src/core/builder.py
+
+“”“Builder pour créer les scénarios.”””
+
+from src.config import ConfigLoader
+from src.browser import BrowserFactory
+from src.api import ApiClient
+from src.reporting import Reporter
+
+class ScenarioBuilder:
+“”“Constructeur de scénarios.”””
+
+```
+@staticmethod
+def create_from_config() -> Scenario:
+    """Crée un scénario à partir de la configuration."""
+    # 1. Charger la configuration
+    config = ConfigLoader.load()
+    
+    # 2. Créer le navigateur
+    browser = BrowserFactory.create(config)
+    
+    # 3. Créer le client API si nécessaire
+    api_client = None
+    if config.api_enabled:
+        api_client = ApiClient(config)
+    
+    # 4. Créer le reporter
+    reporter = Reporter(config)
+    
+    # 5. Créer le scénario
+    return Scenario(
+        name=config.scenario_name,
+        config=config,
+        browser=browser,
+        api_client=api_client,
+        reporter=reporter
+    )
+```
+
+# src/config/loader.py
+
+“”“Chargeur de configuration unifié.”””
+
+import os
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
+
+from src.utils.yaml_loader import load_yaml_file
+from src.api import ApiClient
+
+@dataclass
+class Config:
+“”“Configuration unifiée du scénario.”””
+
+```
+# Informations de base
+scenario_name: str
+scenario_id: Optional[str] = None
+platform: str = "prod"
+
+# Navigateur
+browser_name: str = "firefox"
+headless: bool = True
+proxy: Optional[str] = None
+
+# Chemins
+scenarios_path: str = "/opt/scenarios_v6"
+output_path: str = "/opt/output"
+screenshot_dir: Optional[str] = None
+report_dir: Optional[str] = None
+
+# API
+api_enabled: bool = False
+api_base_url: str = "http://localhost/"
+
+# Options
+generate_har: bool = False
+
+# Utilisateur (chargé dynamiquement)
+user: Optional[Dict[str, Any]] = None
+```
+
+class ConfigLoader:
+“”“Chargeur de configuration unifié.”””
+
+```
+@staticmethod
+def load() -> Config:
+    """Charge la configuration complète."""
+    # 1. Variables d'environnement (base)
+    env_config = ConfigLoader._load_env_config()
+    
+    # 2. Fichiers YAML (scénario + commun)
+    yaml_config = ConfigLoader._load_yaml_config(env_config)
+    
+    # 3. Données API (si activées)
+    api_data = None
+    if env_config.get('api_enabled') and yaml_config.get('scenario_id'):
+        api_data = ConfigLoader._load_api_data(env_config, yaml_config)
+    
+    # 4. Fusion simple (comme souhaité)
+    final_config = {**yaml_config, **env_config}
+    if api_data:
+        final_config.update(api_data)  # API écrase tout
+    
+    # 5. Création de la config finale
+    config = Config(**final_config)
+    
+    # 6. Post-traitement (utilisateur, répertoires, etc.)
+    ConfigLoader._post_process_config(config)
+    
+    return config
+
+@staticmethod
+def _load_env_config() -> Dict[str, Any]:
+    """Charge les variables d'environnement."""
+    return {
+        'scenario_name': os.getenv('NOM_SCENARIO'),
+        'platform': os.getenv('PLATEFORME', 'prod'),
+        'browser_name': os.getenv('NAVIGATEUR', 'firefox'),
+        'headless': os.getenv('HEADLESS', 'true').lower() == 'true',
+        'proxy': os.getenv('PROXY'),
+        'scenarios_path': os.getenv('SCENARIOS_PATH', '/opt/scenarios_v6'),
+        'output_path': os.getenv('OUTPUT_PATH', '/opt/output'),
+        'api_enabled': os.getenv('LECTURE', 'false').lower() == 'true',
+        'api_base_url': os.getenv('URL_BASE_API_INJECTEUR', 'http://localhost/'),
+    }
+
+@staticmethod
+def _load_yaml_config(env_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Charge la configuration YAML."""
+    scenario_path = f"{env_config['scenarios_path']}/config/scenarios/{env_config['scenario_name']}.conf"
+    yaml_config = load_yaml_file(scenario_path)
+    
+    # Charger la config commune si définie
+    if 'config_commune' in yaml_config:
+        common_path = f"{env_config['scenarios_path']}/config/commun/{yaml_config['config_commune']}.conf"
+        common_config = load_yaml_file(common_path)
+        yaml_config = {**common_config, **yaml_config}  # Scénario écrase commun
+    
+    # Simplifier par plateforme
+    platform = env_config.get('platform', 'prod')
+    for key, value in list(yaml_config.items()):
+        if isinstance(value, dict) and platform in value:
+            yaml_config[key] = value[platform]
+    
+    return yaml_config
+
+@staticmethod
+def _load_api_data(env_config: Dict[str, Any], yaml_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Charge les données depuis l'API."""
+    try:
+        api_client = ApiClient({
+            'api_base_url': env_config['api_base_url']
+        })
+        return api_client.load_scenario_data(yaml_config['scenario_id'])
+    except Exception as e:
+        # Log error but don't fail
+        return None
+
+@staticmethod
+def _post_process_config(config: Config):
+    """Post-traitement de la configuration."""
+    # Créer les répertoires de sortie
+    if config.scenario_name:
+        timestamp = datetime.now().strftime("%Y-%m-%d/%H:%M:%S")
+        config.screenshot_dir = f"{config.output_path}/screenshots/{config.scenario_name}/{timestamp}"
+        config.report_dir = f"{config.output_path}/rapports/{config.scenario_name}/{timestamp}"
+        
+        # Créer les répertoires
+        Path(config.screenshot_dir).mkdir(parents=True, exist_ok=True)
+        Path(config.report_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Charger l'utilisateur si défini
+    if hasattr(config, 'user_file') and config.user_file:
+        config.user = ConfigLoader._load_user_data(config)
+
+@staticmethod
+def _load_user_data(config: Config) -> Dict[str, Any]:
+    """Charge les données utilisateur."""
+    user_path = f"{config.scenarios_path}/config/utilisateurs/{config.user_file}.conf"
+    user_data = load_yaml_file(user_path)
+    
+    # Simplifier par plateforme
+    if config.platform in user_data:
+        user_data = user_data[config.platform]
+    
+    # Décrypter si nécessaire
+    for key, value in user_data.items():
+        if isinstance(value, dict) and value.get('crypte'):
+            # Utiliser votre fonction de décryptage existante
+            from src.utils.decrypt import decryptage_utilisateur
+            user_data[key] = decryptage_utilisateur(value['valeur'])
+    
+    return user_data
+```
