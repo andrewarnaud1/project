@@ -6,7 +6,7 @@ Copiez le code ci-dessous et importez-le dans votre outil de diagramme :
 
 ```mermaid
 classDiagram
-    %% === MODULE CONFIGURATION ===
+    %%  MODULE CONFIGURATION 
     class VariablesEnvironnement {
         +nom_scenario: str
         +type_scenario: TypeScenario
@@ -79,7 +79,7 @@ classDiagram
         -_determiner_generation_har(config): bool
     }
 
-    %% === MODULE NOYAU ===
+    %%  MODULE NOYAU 
     class Etape {
         +nom: str
         +est_etape_scenario: bool
@@ -146,7 +146,7 @@ classDiagram
         +obtenir_informations_systeme(): Dict
     }
 
-    %% === ENUMERATIONS ===
+    %%  ENUMERATIONS 
     class TypeScenario {
         <<enumeration>>
         WEB
@@ -184,7 +184,7 @@ classDiagram
         INCONNU
     }
 
-    %% === MODULES FUTURS (PREVUS) ===
+    %%  MODULES FUTURS (PREVUS) 
     class ActionsWeb {
         +page: Page
         --
@@ -237,7 +237,7 @@ classDiagram
         +ajouter_curseur(element): None
     }
 
-    %% === RELATIONS ===
+    %%  RELATIONS 
     VariablesEnvironnement ||--|| GestionnaireEnvironnement : "créé par"
     ConfigurationScenario ||--|| ConstructeurConfiguration : "créé par"
     ConstructeurConfiguration --> VariablesEnvironnement : "utilise"
@@ -483,3 +483,32 @@ Scenario --> StatutScenario
 - Composition : Scenario contient plusieurs Etapes
 - Association : Configuration utilise VariablesEnvironnement
 - Dépendance : Actions utilisent les classes métier
+
+Voici comment faire des relations :
+
+Defining Relationship ​
+
+A relationship is a general term covering the specific types of logical connections found on class and object diagrams.
+
+[classA][Arrow][ClassB]code
+
+There are eight different types of relations defined for classes under UML which are currently supported:
+Type 	Description
+<|-- 	Inheritance
+*-- 	Composition
+o-- 	Aggregation
+--> 	Association
+-- 	Link (Solid)
+..> 	Dependency
+..|> 	Realization
+.. 	Link (Dashed)
+
+classDiagram
+classA <|-- classB
+classC *-- classD
+classE o-- classF
+classG <-- classH
+classI -- classJ
+classK <.. classL
+classM <|.. classN
+classO .. classP
