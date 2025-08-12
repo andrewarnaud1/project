@@ -6,7 +6,7 @@ Copiez le code ci-dessous et importez-le dans votre outil de diagramme :
 
 ```mermaid
 classDiagram
-    %%  MODULE CONFIGURATION 
+    %% === MODULE CONFIGURATION ===
     class VariablesEnvironnement {
         +nom_scenario: str
         +type_scenario: TypeScenario
@@ -79,7 +79,7 @@ classDiagram
         -_determiner_generation_har(config): bool
     }
 
-    %%  MODULE NOYAU 
+    %% === MODULE NOYAU ===
     class Etape {
         +nom: str
         +est_etape_scenario: bool
@@ -146,7 +146,7 @@ classDiagram
         +obtenir_informations_systeme(): Dict
     }
 
-    %%  ENUMERATIONS 
+    %% === ENUMERATIONS ===
     class TypeScenario {
         <<enumeration>>
         WEB
@@ -184,7 +184,7 @@ classDiagram
         INCONNU
     }
 
-    %%  MODULES FUTURS (PREVUS) 
+    %% === MODULES FUTURS (PREVUS) ===
     class ActionsWeb {
         +page: Page
         --
@@ -237,29 +237,42 @@ classDiagram
         +ajouter_curseur(element): None
     }
 
-    %%  RELATIONS 
-    VariablesEnvironnement ||--|| GestionnaireEnvironnement : "créé par"
-    ConfigurationScenario ||--|| ConstructeurConfiguration : "créé par"
+    %% === RELATIONS ===
+    %% Création/Factory (Dependency)
+    GestionnaireEnvironnement ..> VariablesEnvironnement : "crée"
+    ConstructeurConfiguration ..> ConfigurationScenario : "crée"
+    
+    %% Composition (Partie intégrante)
+    ConfigurationScenario *-- VariablesEnvironnement : "contient"
+    Scenario *-- Etape : "contient"
+    Scenario *-- ContexteExecution : "contient"
+    
+    %% Association (Utilise/Référence)
     ConstructeurConfiguration --> VariablesEnvironnement : "utilise"
-    ConfigurationScenario --> VariablesEnvironnement : "contient"
+    Scenario --> ConfigurationScenario : "configuré par"
     
-    Scenario ||--|| ConfigurationScenario : "configuré par"
-    Scenario ||--o{ Etape : "contient"
-    Scenario ||--|| ContexteExecution : "utilise"
+    %% Agrégation (Contient mais peut exister séparément)
+    ConfigurationScenario o-- "donnees_api" : "peut contenir"
     
-    Etape --> StatutEtape : "a un"
-    Scenario --> StatutScenario : "a un"
-    VariablesEnvironnement --> TypeScenario : "a un"
-    VariablesEnvironnement --> TypeNavigateur : "a un"
-    VariablesEnvironnement --> Plateforme : "a un"
+    %% Réalisation/Implémentation des Enums
+    VariablesEnvironnement --> TypeScenario : "utilise"
+    VariablesEnvironnement --> TypeNavigateur : "utilise"
+    VariablesEnvironnement --> Plateforme : "utilise"
+    Etape --> StatutEtape : "utilise"
+    Scenario --> StatutScenario : "utilise"
     
-    %% Relations futures
-    ActionsWeb --> Scenario : "utilisé par"
-    ActionsExadata --> Scenario : "utilisé par"
-    ClientApi --> ConfigurationScenario : "utilise"
-    FabriqueNavigateur --> ConfigurationScenario : "utilise"
-    RapporteurJson --> Scenario : "génère rapport de"
-    GestionnaireCaptures --> Etape : "capture pour"
+    %% === RELATIONS FUTURES (MODULES À VENIR) ===
+    %% Dépendances d'utilisation
+    ActionsWeb ..> Scenario : "utilisé par tests"
+    ActionsExadata ..> Scenario : "utilisé par tests"
+    
+    %% Associations de service
+    ClientApi --> ConfigurationScenario : "utilise config"
+    FabriqueNavigateur --> ConfigurationScenario : "utilise config"
+    
+    %% Génération de rapports
+    RapporteurJson --> Scenario : "génère rapport"
+    GestionnaireCaptures --> Etape : "capture écran"
 ```
 
 ## Alternative : Format PlantUML
@@ -483,32 +496,3 @@ Scenario --> StatutScenario
 - Composition : Scenario contient plusieurs Etapes
 - Association : Configuration utilise VariablesEnvironnement
 - Dépendance : Actions utilisent les classes métier
-
-Voici comment faire des relations :
-
-Defining Relationship ​
-
-A relationship is a general term covering the specific types of logical connections found on class and object diagrams.
-
-[classA][Arrow][ClassB]code
-
-There are eight different types of relations defined for classes under UML which are currently supported:
-Type 	Description
-<|-- 	Inheritance
-*-- 	Composition
-o-- 	Aggregation
---> 	Association
--- 	Link (Solid)
-..> 	Dependency
-..|> 	Realization
-.. 	Link (Dashed)
-
-classDiagram
-classA <|-- classB
-classC *-- classD
-classE o-- classF
-classG <-- classH
-classI -- classJ
-classK <.. classL
-classM <|.. classN
-classO .. classP
