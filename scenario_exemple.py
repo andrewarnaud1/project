@@ -1,224 +1,135 @@
 """
-Fichier généré automatiquement
 Scénario: aai2_consultation_demande
 Description: Consultation d'une demande dans AAI2 avec iframes par action
-Généré le: 2025-07-11 09:29:06
+Architecture: Simulateur v6 Refactorisé
+Migré le: 2025-01-XX
 """
 
-
 import pytest
-import logging
-import sys
-import inspect
-from playwright.sync_api import sync_playwright, Page, expect
-from src.simulateur import Execution, Etape, execution, contexte, page, first_page, etape
-from src.utils.screenshot_manager import take_screenshot
-from src.simulateur.gestion_exception import gestion_exception
+from playwright.sync_api import expect
+from src.core import ScenarioPage, StepResult
 from commun import comm_portail_applicatif
 
-class TestClass():
+
+class TestAAI2ConsultationDemande:
     """
-    Les differents tests (etapes) sont regroupes dans TestClass.
+    Scénario de consultation d'une demande dans AAI2.
+    
+    Flux fonctionnel:
+        1. Identification sur le portail
+        2. Accès à l'application AAI2
+        3. Navigation vers consultation des demandes
+        4. Recherche d'une demande par nom
+        5. Consultation du détail
+        6. Retour au portail
     """
-    def test_identification(self, execution: Execution, page: Page, etape: Etape, request):
+
+    def test_identification(self, page: ScenarioPage, step_result: StepResult):
         """
-        Étape: identification
+        Identification sur le portail applicatif.
+        
+        Étape commune réutilisée pour l'authentification.
         """
-        return comm_portail_applicatif.EtapesCommunes().test_identification(execution, page, etape, request)
+        # Délégation vers module commun avec nouvelles signatures
+        comm_portail_applicatif.EtapesCommunes().identification(page, step_result)
 
-    def test_portail_applicatif(self, execution: Execution, page: Page, etape: Etape, request):
+    def test_portail_applicatif(self, page: ScenarioPage, step_result: StepResult):
         """
-        Étape: portail_applicatif
+        Accès à l'application AAI2 depuis le portail.
+        
+        Navigation depuis le portail vers l'application métier AAI2.
         """
-        try:
-            elts_flous = []
-# Action cliquer
+        # Localisation et clic sur lien AAI2
+        aai2_link = page.get_by_role("link", name="AAI2")
+        expect(aai2_link).to_be_visible(timeout=30000)
+        
+        page.screenshot("portail_avant_clic_aai2")
+        aai2_link.click()
+        
+        # SUCCESS automatique si pas d'exception
 
-            html_element = page.get_by_role(
-                "link",
-                name="AAI2",
-            )
-            expect(html_element).to_be_visible(timeout=30000)
-
-            take_screenshot(execution, etape, page, elts_flous=elts_flous)
-            html_element.click()
-
-            etape.finalise(
-                execution.compteur_etape,
-                0,
-                page.url,
-                f"OK - Étape {execution.compteur_etape} portail_applicatif"
-            )
-            
-        except Exception as e:
-            gestion_exception(execution, etape, page, e)
-
-    def test_accueil_aai2(self, execution: Execution, page: Page, etape: Etape, request):
+    def test_accueil_aai2(self, page: ScenarioPage, step_result: StepResult):
         """
-        Étape: accueil_aai2
+        Navigation dans l'accueil AAI2 vers la consultation des demandes.
+        
+        Utilise les iframes pour accéder aux fonctionnalités de l'application.
         """
-        try:
-            elts_flous = []
-# Action cliquer
+        # Accès à l'iframe principale de l'application
+        iframe_principale = page.frame_locator('iframe[name="iframe_principale"]')
+        
+        # Clic sur menu Demandes
+        menu_demandes = iframe_principale.get_by_text("Demandes", exact=True)
+        expect(menu_demandes).to_be_visible(timeout=30000)
+        menu_demandes.click()
+        
+        # Clic sur sous-menu "Consulter une demande"
+        lien_consulter = iframe_principale.get_by_role("link", name="Consulter une demande")
+        expect(lien_consulter).to_be_visible(timeout=30000)
+        
+        page.screenshot("aai2_avant_clic_consulter")
+        lien_consulter.click()
 
-            frame = page.frame_locator('iframe[name="iframe_principale"]')
-            html_element = frame.get_by_text(
-                "Demandes",
-                exact=True,
-            )
-
-            expect(html_element).to_be_visible(timeout=30000)
-
-            html_element.click()
-# Action cliquer
-
-            frame = page.frame_locator('iframe[name="iframe_principale"]')
-            html_element = frame.get_by_role(
-                "link",
-                name="Consulter une demande",
-            )
-            expect(html_element).to_be_visible(timeout=30000)
-
-            take_screenshot(execution, etape, page, elts_flous=elts_flous)
-            html_element.click()
-
-            etape.finalise(
-                execution.compteur_etape,
-                0,
-                page.url,
-                f"OK - Étape {execution.compteur_etape} accueil_aai2"
-            )
-            
-        except Exception as e:
-            gestion_exception(execution, etape, page, e)
-
-    def test_liste_demandes(self, execution: Execution, page: Page, etape: Etape, request):
+    def test_liste_demandes(self, page: ScenarioPage, step_result: StepResult):
         """
-        Étape: liste_demandes
+        Recherche d'une demande par nom.
+        
+        Saisie des critères de recherche et lancement de la recherche.
         """
-        try:
-            elts_flous = []
-# Action saisir
+        iframe_principale = page.frame_locator('iframe[name="iframe_principale"]')
+        
+        # Saisie du nom à rechercher
+        champ_nom = iframe_principale.get_by_role("textbox", name="Nom")
+        champ_nom.fill("test")
+        
+        # Clic sur bouton rechercher
+        bouton_rechercher = iframe_principale.get_by_role("button", name="Rechercher")
+        expect(bouton_rechercher).to_be_visible(timeout=30000)
+        
+        page.screenshot("recherche_avant_execution")
+        bouton_rechercher.click()
 
-            frame = page.frame_locator('iframe[name="iframe_principale"]')
-            html_element = frame.get_by_role(
-                "textbox",
-                name="Nom",
-            )
-            html_element.fill("test")
-# Action cliquer
-
-            frame = page.frame_locator('iframe[name="iframe_principale"]')
-            html_element = frame.get_by_role(
-                "button",
-                name="Rechercher",
-            )
-            expect(html_element).to_be_visible(timeout=30000)
-
-            take_screenshot(execution, etape, page, elts_flous=elts_flous)
-            html_element.click()
-
-            etape.finalise(
-                execution.compteur_etape,
-                0,
-                page.url,
-                f"OK - Étape {execution.compteur_etape} liste_demandes"
-            )
-            
-        except Exception as e:
-            gestion_exception(execution, etape, page, e)
-
-    def test_resultat_recherche(self, execution: Execution, page: Page, etape: Etape, request):
+    def test_resultat_recherche(self, page: ScenarioPage, step_result: StepResult):
         """
-        Étape: resultat_recherche
+        Sélection d'une demande dans les résultats de recherche.
+        
+        Accès au détail d'une demande depuis la liste des résultats.
         """
-        try:
-            elts_flous = []
-# Action cliquer
+        iframe_principale = page.frame_locator('iframe[name="iframe_principale"]')
+        
+        # Clic sur lien de visualisation de la demande
+        lien_visualisation = iframe_principale.get_by_role("link", name="Visualisation de la demande")
+        expect(lien_visualisation).to_be_visible(timeout=30000)
+        
+        page.screenshot("resultats_avant_selection")
+        lien_visualisation.click()
 
-            frame = page.frame_locator('iframe[name="iframe_principale"]')
-            html_element = frame.get_by_role(
-                "link",
-                name="Visualisation de la demande",
-            )
-            expect(html_element).to_be_visible(timeout=30000)
-
-            take_screenshot(execution, etape, page, elts_flous=elts_flous)
-            html_element.click()
-
-            etape.finalise(
-                execution.compteur_etape,
-                0,
-                page.url,
-                f"OK - Étape {execution.compteur_etape} resultat_recherche"
-            )
-            
-        except Exception as e:
-            gestion_exception(execution, etape, page, e)
-
-    def test_detail_demande(self, execution: Execution, page: Page, etape: Etape, request):
+    def test_detail_demande(self, page: ScenarioPage, step_result: StepResult):
         """
-        Étape: detail_demande
+        Vérification de l'affichage du détail de la demande.
+        
+        Contrôle que la page de détail s'affiche correctement avec les informations.
         """
-        try:
-            elts_flous = []
-# Action vérifier
+        iframe_principale = page.frame_locator('iframe[name="iframe_principale"]')
+        
+        # Vérification de la présence du titre de la page de détail
+        titre_detail = iframe_principale.get_by_role("heading", name="Détail de la demande")
+        expect(titre_detail).to_be_visible(timeout=30000)
+        
+        page.screenshot("detail_demande_affiche")
 
-            frame = page.frame_locator('iframe[name="iframe_principale"]')
-            html_element = frame.get_by_role(
-                "heading",
-                name="Détail de la demande",
-            )
-              
-            expect(html_element).to_be_visible(timeout=30000)
-              
-
-            take_screenshot(execution, etape, page, elts_flous=elts_flous)
-
-            etape.finalise(
-                execution.compteur_etape,
-                0,
-                page.url,
-                f"OK - Étape {execution.compteur_etape} detail_demande"
-            )
-            
-        except Exception as e:
-            gestion_exception(execution, etape, page, e)
-
-    def test_retour_portail_applicatif(self, execution: Execution, page: Page, etape: Etape, request):
+    def test_retour_portail_applicatif(self, page: ScenarioPage, step_result: StepResult):
         """
-        Étape: retour_portail_applicatif
+        Retour au portail applicatif depuis AAI2.
+        
+        Navigation de retour vers la page d'accueil du portail.
         """
-        try:
-            elts_flous = []
-# Action cliquer
-
-            html_element = page.get_by_role(
-                "link",
-                name="Retour vers la page d'accueil",
-            )
-            expect(html_element).to_be_visible(timeout=30000)
-
-            html_element.click()
-# Action vérifier
-
-            html_element = page.get_by_role(
-                "heading",
-                name="Mes applications",
-            )
-              
-            expect(html_element).to_be_visible(timeout=30000)
-              
-
-            take_screenshot(execution, etape, page, elts_flous=elts_flous)
-
-            etape.finalise(
-                execution.compteur_etape,
-                0,
-                page.url,
-                f"OK - Étape {execution.compteur_etape} retour_portail_applicatif"
-            )
-            
-        except Exception as e:
-            gestion_exception(execution, etape, page, e)
-
+        # Clic sur lien de retour (en dehors de l'iframe)
+        lien_retour = page.get_by_role("link", name="Retour vers la page d'accueil")
+        expect(lien_retour).to_be_visible(timeout=30000)
+        lien_retour.click()
+        
+        # Vérification du retour sur le portail
+        titre_portail = page.get_by_role("heading", name="Mes applications")
+        expect(titre_portail).to_be_visible(timeout=30000)
+        
+        page.screenshot("retour_portail_confirme")
