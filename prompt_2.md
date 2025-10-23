@@ -1,5 +1,3 @@
-Merci d’avoir partagé ces fichiers ! Avant de proposer des améliorations, j’ai quelques questions pour m’assurer de bien comprendre vos besoins :
-
 ## Questions de clarification :
 
 ### 1. **Sur la séparation des responsabilités**
